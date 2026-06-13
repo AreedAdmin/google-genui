@@ -7,6 +7,15 @@ const nextConfig = {
     // The design surface is the deliverable; lint is run via the workspace task.
     ignoreDuringBuilds: true,
   },
+  webpack: (config) => {
+    // @trellis/shared ships TS-ESM with explicit ".js" import specifiers; let
+    // webpack resolve those to the ".ts" sources (tsc/tsx already do this).
+    config.resolve.extensionAlias = {
+      ".js": [".ts", ".tsx", ".js", ".jsx"],
+      ".mjs": [".mts", ".mjs"],
+    };
+    return config;
+  },
 };
 
 export default nextConfig;
