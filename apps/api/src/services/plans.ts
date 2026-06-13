@@ -51,6 +51,60 @@ export async function createPlan(identity: Identity, input: CreatePlanRequest) {
   return plan;
 }
 
+export interface PlanSummary {
+  id: string;
+  project_id: string;
+  title: string;
+  prompt: string;
+  granularity: string;
+  status: string;
+  node_count: number;
+  updated_at: string;
+}
+
+/**
+ * List the caller's plans (org-scoped via their projects), newest first, with a
+ * node count per plan. Powers the home "recent plans" list (GET /v1/plans).
+ */
+export async function listPlans(identity: Identity): Promise<PlanSummary[]> {
+  const sb = db();
+  const { data: projects, error: projErr } = await sb
+    .from("projects")
+    .select("id")
+    .eq("org_id", identity.orgId);
+  if (projErr) throw new Error(`listPlans projects failed: ${projErr.message}`);
+  const projectIds = (projects ?? []).map((p) => p.id);
+  if (projectIds.length === 0) return [];
+
+  const { data: plans, error } = await sb
+    .from("plans")
+    .select("id, project_id, title, prompt, granularity, status, current_revision, updated_at, created_at")
+    .in("project_id", projectIds)
+    .order("updated_at", { ascending: false })
+    .limit(50);
+  if (error) throw new Error(`listPlans failed: ${error.message}`);
+
+  const summaries: PlanSummary[] = [];
+  for (const plan of plans ?? []) {
+    const { count } = await sb
+      .from("plan_nodes")
+      .select("id", { count: "exact", head: true })
+      .eq("plan_id", plan.id)
+      .eq("revision", plan.current_revision ?? 1);
+    summaries.push({
+      id: plan.id,
+      project_id: plan.project_id,
+      title: plan.title,
+      prompt: plan.prompt,
+      granularity: plan.granularity,
+      status: plan.status,
+      node_count: count ?? 0,
+      updated_at: plan.updated_at ?? plan.created_at,
+    });
+  }
+  return summaries;
+}
+
 /**
  * Assemble a full PlanGraph (plan + nodes + edges + branches + annotations) for
  * a plan's current revision. Throws NotFoundError if the plan is hidden/absent.

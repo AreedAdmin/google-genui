@@ -42,6 +42,16 @@ export const env = {
   // Analysis service
   analysisServiceUrl: optional("ANALYSIS_SERVICE_URL", "http://localhost:8000"),
 
+  // Linkup — external web-search grounding tool (planner + analysis agents).
+  // Optional: a missing key makes the tool unavailable (logged), per the MVP
+  // "degrade, don't crash" rule. Kept separate from repo-symbol grounding.
+  linkupApiKey: optional("LINKUP_API_KEY", ""),
+
+  // A2A remote runner — Agent Card URL of an external A2A-speaking coding agent,
+  // used as execution_backend "a2a_remote". Empty => that backend is unavailable
+  // (mandated-integrations.md §3.2). The orchestrator is the A2A *client*.
+  a2aRunnerCardUrl: optional("A2A_RUNNER_CARD_URL", ""),
+
   // Execution / runners
   executionBackend: optional("EXECUTION_BACKEND", "claude_code"),
   claudeCodePath: optional("CLAUDE_CODE_PATH", "/usr/local/bin/claude"),

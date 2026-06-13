@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Trellis — Layered Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-0: #070b16;
+    --bg-1: #0c1426;
+    --ink: #e8eefc;
+    --ink-dim: #9fb0d0;
+    --card: rgba(255, 255, 255, 0.92);
+    --card-ink: #0a1224;
+    --card-ink-dim: #44506b;
+    --chip-border: rgba(10, 18, 36, 0.10);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background:
+      radial-gradient(1200px 700px at 50% -10%, #14203d 0%, transparent 60%),
+      radial-gradient(900px 600px at 90% 110%, #102a22 0%, transparent 55%),
+      linear-gradient(160deg, var(--bg-1) 0%, var(--bg-0) 100%);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 64px 28px 72px;
+    display: flex;
+    justify-content: center;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { width: 100%; max-width: 1120px; }
+
+  /* ---------------- Header ---------------- */
+  .header { text-align: center; margin-bottom: 18px; }
+
+  .sprout {
+    font-size: 30px;
+    line-height: 1;
+    filter: drop-shadow(0 6px 18px rgba(52, 211, 153, 0.45));
+    margin-bottom: 6px;
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+
+  .title {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 64px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    background: linear-gradient(180deg, #ffffff 0%, #b9c8ec 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1;
+  }
+
+  .subtitle {
+    margin-top: 14px;
+    font-size: 16px;
+    color: var(--ink-dim);
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.55;
+  }
+  .subtitle b { color: var(--ink); font-weight: 600; }
+
+  /* ---------------- Cake frame ---------------- */
+  .cake-wrap {
+    display: grid;
+    grid-template-columns: 56px 1fr 56px;
+    align-items: stretch;
+    gap: 18px;
+    margin-top: 44px;
+  }
+
+  .flow-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: var(--ink-dim);
+  }
+  .flow-rail .rail-line {
+    flex: 1;
+    width: 2px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, rgba(159,176,208,0.05), rgba(159,176,208,0.4), rgba(159,176,208,0.05));
+  }
+  .flow-rail .rail-label {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-size: 10.5px;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .flow-rail.left .rail-label { transform: rotate(180deg); }
+
+  .cake { display: flex; flex-direction: column; gap: 16px; }
+
+  /* ---------------- A cake layer ---------------- */
+  .layer {
+    position: relative;
+    border-radius: 18px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    color: var(--card-ink);
+    background: var(--g);
+    /* the darker "side" of the slab + soft drop shadow = layer-cake depth */
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.55),
+      0 13px 0 -1px var(--side),
+      0 32px 38px -16px rgba(0, 0, 0, 0.55);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .layer:hover { transform: translateY(-3px); }
+
+  .layer.hero {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.55),
+      0 13px 0 -1px var(--side),
+      0 0 0 1.5px rgba(52, 211, 153, 0.55),
+      0 24px 60px -10px rgba(16, 185, 129, 0.55);
+  }
+
+  .badge {
+    flex: 0 0 auto;
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+    background: rgba(10, 18, 36, 0.82);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 6px 14px rgba(0,0,0,0.25);
+  }
+
+  .layer-meta { flex: 0 0 232px; }
+  .layer-name {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .layer-tag {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: rgba(10, 18, 36, 0.14);
+    color: var(--card-ink);
+  }
+  .layer-role {
+    margin-top: 5px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--card-ink-dim);
+    font-weight: 500;
+  }
+  .hero-pill {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(10, 18, 36, 0.85);
+    color: #6ee7b7;
+  }
+
+  .chips { flex: 1; display: flex; flex-wrap: wrap; gap: 9px; }
+  .chip {
+    background: var(--card);
+    border: 1px solid var(--chip-border);
+    border-radius: 11px;
+    padding: 9px 13px;
+    min-width: 0;
+    box-shadow: 0 2px 6px rgba(10, 18, 36, 0.12);
+  }
+  .chip .c-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--card-ink);
+    letter-spacing: -0.01em;
+  }
+  .chip .c-sub {
+    font-size: 11px;
+    color: var(--card-ink-dim);
+    margin-top: 2px;
+    font-weight: 500;
+  }
+
+  /* ---------------- Layer palette ---------------- */
+  .l1 { --g: linear-gradient(135deg, #67e8f9 0%, #22d3ee 55%, #0ea5e9 100%); --side: #0b6f93; }
+  .l2 { --g: linear-gradient(135deg, #a5b4fc 0%, #818cf8 55%, #6366f1 100%); --side: #3b3aa6; }
+  .l3 { --g: linear-gradient(135deg, #fcd34d 0%, #fbbf24 55%, #f59e0b 100%); --side: #b3760a; }
+  .l4 { --g: linear-gradient(135deg, #6ee7b7 0%, #34d399 50%, #10b981 100%); --side: #097a5b; }
+  .l5 { --g: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 55%, #64748b 100%); --side: #3a4453; }
+
+  /* ---------------- Legend ---------------- */
+  .legend {
+    margin-top: 40px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+  }
+  .principle {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 12px 18px;
+    font-size: 13px;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .principle .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+  .principle b { font-weight: 700; }
+  .principle .muted { color: var(--ink-dim); }
+
+  .footnote {
+    margin-top: 26px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-dim);
+    letter-spacing: 0.02em;
+  }
+  .footnote code {
+    font-family: "JetBrains Mono", monospace;
+    background: rgba(255,255,255,0.06);
+    padding: 1px 6px;
+    border-radius: 5px;
+    color: #c7d4f0;
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="sprout">🌿</div>
+      <div class="eyebrow">System Architecture</div>
+      <div class="title">Trellis</div>
+      <p class="subtitle">
+        A generative-UI agentic coding planner. <b>LLMs propose &amp; explain; deterministic
+        services enumerate &amp; decide.</b> Requests flow down the stack; grounded plans and
+        live diffs stream back up.
+      </p>
+    </div>
+
+    <div class="cake-wrap">
+      <div class="flow-rail left">
+        <div class="rail-line"></div>
+        <span class="rail-label">Request&nbsp;flows&nbsp;down&nbsp;↓</span>
+        <div class="rail-line"></div>
+      </div>
+
+      <div class="cake">
+
+        <!-- Layer 1 -->
+        <div class="layer l1">
+          <div class="badge">1</div>
+          <div class="layer-meta">
+            <div class="layer-name">Interaction <span class="layer-tag">apps/web</span></div>
+            <div class="layer-role">The generative UI — a plan you can <i>operate</i>, not just read.</div>
+          </div>
+          <div class="chips">
+            <div class="chip"><div class="c-name">Web Canvas</div><div class="c-sub">Next.js 15 · React Flow DAG</div></div>
+            <div class="chip"><div class="c-name">Node Inspector</div><div class="c-sub">5 grounded sections + widgets</div></div>
+            <div class="chip"><div class="c-name">/trellis</div><div class="c-sub">Claude Code slash command</div></div>
+            <div class="chip"><div class="c-name">Live Canvas</div><div class="c-sub">Realtime re-flow · SSE runs</div></div>
+          </div>
+        </div>
+
+        <!-- Layer 2 -->
+        <div class="layer l2">
+          <div class="badge">2</div>
+          <div class="layer-meta">
+            <div class="layer-name">Orchestration <span class="layer-tag">apps/api</span></div>
+            <div class="layer-role">Thin control plane: validate → persist → enqueue → return. Never blocks on agents.</div>
+          </div>
+          <div class="chips">
+            <div class="chip"><div class="c-name">Fastify /v1</div><div class="c-sub">REST orchestration API</div></div>
+            <div class="chip"><div class="c-name">MCP Server</div><div class="c-sub">plan · status · run_branch</div></div>
+            <div class="chip"><div class="c-name">Auth</div><div class="c-sub">Supabase JWT · org-scoped</div></div>
+          </div>
+        </div>
+
+        <!-- Layer 3 -->
+        <div class="layer l3">
+          <div class="badge">3</div>
+          <div class="layer-meta">
+            <div class="layer-name">Agents &amp; Workers <span class="layer-tag">apps/workers</span></div>
+            <div class="layer-role">BullMQ fleet. The models <i>propose &amp; explain</i> — they never decide a dependency.</div>
+          </div>
+          <div class="chips">
+            <div class="chip"><div class="c-name">Planner</div><div class="c-sub">Opus 4.8 → nodes + layout</div></div>
+            <div class="chip"><div class="c-name">Analysis</div><div class="c-sub">Opus 4.8 → grounded cards</div></div>
+            <div class="chip"><div class="c-name">Builder</div><div class="c-sub">Claude Code · Sonnet 4.6</div></div>
+            <div class="chip"><div class="c-name">Integration</div><div class="c-sub">merge + test gate</div></div>
+          </div>
+        </div>
+
+        <!-- Layer 4 — hero -->
+        <div class="layer l4 hero">
+          <div class="badge">4</div>
+          <div class="layer-meta">
+            <div class="layer-name">Reasoning Core</div>
+            <div class="layer-role">Deterministic services <i>enumerate &amp; decide</i> the real edges &amp; independence.</div>
+            <span class="hero-pill">★ The safety core</span>
+          </div>
+          <div class="chips">
+            <div class="chip"><div class="c-name">Dependency Engine</div><div class="c-sub">resolve → edges → branches</div></div>
+            <div class="chip"><div class="c-name">Analysis Service</div><div class="c-sub">Python · tree-sitter · networkx</div></div>
+            <div class="chip"><div class="c-name">Overlap &amp; Blast-radius</div><div class="c-sub">false-independence guard</div></div>
+          </div>
+        </div>
+
+        <!-- Layer 5 -->
+        <div class="layer l5">
+          <div class="badge">5</div>
+          <div class="layer-meta">
+            <div class="layer-name">Foundation</div>
+            <div class="layer-role">Supabase = durable truth · Redis = ephemeral control plane.</div>
+          </div>
+          <div class="chips">
+            <div class="chip"><div class="c-name">Supabase</div><div class="c-sub">Postgres · Auth · Realtime</div></div>
+            <div class="chip"><div class="c-name">Redis</div><div class="c-sub">queues · locks · run streams</div></div>
+            <div class="chip"><div class="c-name">Git Worktrees</div><div class="c-sub">1 isolated tree per node</div></div>
+            <div class="chip"><div class="c-name">Anthropic API</div><div class="c-sub">Opus 4.8 · Sonnet 4.6</div></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="flow-rail right">
+        <div class="rail-line"></div>
+        <span class="rail-label">Results&nbsp;stream&nbsp;up&nbsp;↑</span>
+        <div class="rail-line"></div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="principle">
+        <span class="dot" style="background:#fbbf24"></span>
+        <span><b>LLMs</b> <span class="muted">propose &amp; explain</span></span>
+      </div>
+      <div class="principle">
+        <span class="dot" style="background:#34d399"></span>
+        <span><b>Deterministic services</b> <span class="muted">enumerate &amp; decide</span></span>
+      </div>
+      <div class="principle">
+        <span class="dot" style="background:#22d3ee"></span>
+        <span><b>Asymmetric caution</b> <span class="muted">— when unsure, assert a dependency</span></span>
+      </div>
+    </div>
+
+    <p class="footnote">
+      Describe → Plan → Inspect → Iterate → Operate → Delegate &nbsp;·&nbsp; the agent's output is
+      <code>software, not an answer</code>.
+    </p>
+  </div>
+</body>
+</html>

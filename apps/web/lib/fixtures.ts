@@ -481,6 +481,147 @@ const g3: PlanGraph = {
       model: "claude-sonnet-4-6",
       generated_at: now,
     },
+    {
+      // infra node → resource_diagram
+      node_id: uuid("g3n5"),
+      revision: 1,
+      assumptions: [{ text: "The billing service runs as its own container behind the internal gateway.", grounded_refs: ["infra/billing.tf"], confidence: 0.72 }],
+      analysis: [{ kind: "failure_mode", text: "Without a queue DLQ, a poisoned charge event blocks the whole worker.", grounded_refs: ["infra/billing.tf"], severity: "medium", confidence: 0.7 }],
+      benefits: [{ text: "Billing scales and deploys independently of the monolith.", grounded_refs: ["infra/billing.tf"] }],
+      notable_symbols: [{ symbol: "BILLING_SVC_URL", file: "infra/billing.tf", role: "config", why_notable: "The address every billing caller resolves." }],
+      widget_specs: [
+        {
+          widget: "resource_diagram",
+          version: 1,
+          props: {
+            resources: [
+              { id: "gw", name: "internal-gateway", kind: "gateway", change: "modified" },
+              { id: "svc", name: "billing-service", kind: "service", change: "added" },
+              { id: "q", name: "billing-events", kind: "queue", change: "added" },
+              { id: "db", name: "billing-db", kind: "database", change: "added" },
+            ],
+            links: [
+              { from: "gw", to: "svc", label: "routes /billing" },
+              { from: "svc", to: "q", label: "publishes charges" },
+              { from: "svc", to: "db", label: "ledger writes" },
+            ],
+          },
+          grounding: ["infra/billing.tf", "BILLING_SVC_URL"],
+          fallback_text: "Adds billing-service + billing-events queue + billing-db behind the internal gateway.",
+        },
+      ],
+      model: "claude-sonnet-4-6",
+      generated_at: now,
+    },
+    {
+      // test node → checklist + test_linkage (multi-widget composition)
+      node_id: uuid("g3n6"),
+      revision: 1,
+      assumptions: [{ text: "The e2e suite can run against the merged worktree before promotion.", grounded_refs: ["test/billing.e2e.ts"], confidence: 0.75 }],
+      analysis: [{ kind: "race_condition", text: "Integration must serialize the api and web lanes — they share src/checkout.ts.", grounded_refs: ["src/checkout.ts"], severity: "high", confidence: 0.83 }],
+      benefits: [{ text: "Catches cross-service breakage before the legacy path is removed.", grounded_refs: ["test/billing.e2e.ts"] }],
+      notable_symbols: [{ symbol: "billing.e2e", file: "test/billing.e2e.ts", role: "suite", why_notable: "The gate that reconverges every lane." }],
+      widget_specs: [
+        {
+          widget: "checklist",
+          version: 1,
+          props: {
+            title: "integration gate",
+            items: [
+              { label: "Merge db lane", state: "done", detail: "ledger schema migrated" },
+              { label: "Merge api lane", state: "active", detail: "client + routes" },
+              { label: "Merge web lane (serialize: shares checkout.ts)", state: "blocked", detail: "waits on api lane" },
+              { label: "Run cross-service e2e suite", state: "todo" },
+              { label: "Promote merge commit", state: "todo" },
+            ],
+          },
+          grounding: ["test/billing.e2e.ts", "src/checkout.ts"],
+          fallback_text: "Integration steps: merge db (done), api (active), web (blocked), run e2e, promote.",
+        },
+        {
+          widget: "test_linkage",
+          version: 1,
+          props: {
+            links: [
+              { test: "charges an order end-to-end", file: "test/billing.e2e.ts", covers: ["src/checkout.ts#charge", "src/routes/billing.ts#chargeRoute"], status: "new" },
+              { test: "rejects a declined card", file: "test/billing.e2e.ts", covers: ["src/billing/client.ts#BillingClient"], status: "new" },
+            ],
+            uncovered: ["src/components/Checkout.tsx#Checkout"],
+          },
+          grounding: ["test/billing.e2e.ts", "src/checkout.ts#charge"],
+          fallback_text: "New e2e tests cover charge + decline; Checkout.tsx still uncovered.",
+        },
+      ],
+      model: "claude-sonnet-4-6",
+      generated_at: now,
+    },
+    {
+      // refactor node → call_graph_impact + markdown rationale (multi-widget composition)
+      node_id: uuid("g3n7"),
+      revision: 1,
+      assumptions: [{ text: "No caller reaches legacyCharge once routes point at the billing client.", grounded_refs: ["src/legacy/billing.ts#legacyCharge"], confidence: 0.66 }],
+      analysis: [{ kind: "edge_case", text: "A feature flag may still route a fraction of traffic to legacyCharge.", grounded_refs: ["src/legacy/billing.ts#legacyCharge"], severity: "medium", confidence: 0.6 }],
+      benefits: [{ text: "Deletes a duplicated charge path and its drift risk.", grounded_refs: ["src/legacy/billing.ts#legacyCharge"] }],
+      notable_symbols: [{ symbol: "legacyCharge", file: "src/legacy/billing.ts", role: "removed", why_notable: "The in-monolith path being retired." }],
+      widget_specs: [
+        {
+          widget: "call_graph_impact",
+          version: 1,
+          props: {
+            root: "src/legacy/billing.ts#legacyCharge",
+            affected: [{ symbol: "src/legacy/billing.ts#legacyCharge", file: "src/legacy/billing.ts", relation: "root", depth: 0, risk: "behavior" }],
+            blast_radius: { files: 1, symbols: 1, crosses_branches: false },
+            truncated: false,
+          },
+          grounding: ["src/legacy/billing.ts#legacyCharge"],
+          fallback_text: "legacyCharge has no remaining callers after the route rewire.",
+        },
+        {
+          widget: "markdown",
+          version: 1,
+          props: {
+            title: "removal rationale",
+            markdown:
+              "## Why remove `legacyCharge`\nThe monolith charge path is **superseded** by `BillingClient`.\n\n- routes now call the service client\n- the ledger lives in `billing.ledger`\n\nGate removal on the integration suite passing.",
+          },
+          grounding: ["src/legacy/billing.ts#legacyCharge", "src/billing/client.ts#BillingClient"],
+          fallback_text: "legacyCharge is superseded by BillingClient; remove after the integration suite is green.",
+        },
+      ],
+      model: "claude-sonnet-4-6",
+      generated_at: now,
+    },
+    {
+      // ui_component node → composed (Change 3: a body assembled from primitive blocks)
+      node_id: uuid("g3n4"),
+      revision: 1,
+      assumptions: [{ text: "Checkout consumes the new charge() result shape from the billing client.", grounded_refs: ["src/components/Checkout.tsx#Checkout", "src/checkout.ts"], confidence: 0.74 }],
+      analysis: [{ kind: "edge_case", text: "The retry path must handle a pending charge that later succeeds to avoid double-charging.", grounded_refs: ["src/components/Checkout.tsx#Checkout"], severity: "medium", confidence: 0.7 }],
+      benefits: [{ text: "Surfaces the receipt URL inline instead of a follow-up fetch.", grounded_refs: ["src/components/Checkout.tsx#Checkout"] }],
+      notable_symbols: [{ symbol: "Checkout", file: "src/components/Checkout.tsx", role: "component", why_notable: "Consumes the new charge result; shares checkout.ts with the api lane." }],
+      widget_specs: [
+        {
+          widget: "composed",
+          version: 1,
+          props: {
+            title: "checkout change summary",
+            blocks: [
+              { kind: "stat", label: "files touched", value: "2", tone: "neutral" },
+              { kind: "stat", label: "shared with api lane", value: "checkout.ts", delta: "conflict risk", tone: "neg" },
+              { kind: "text", body: "Checkout now consumes the new charge() result shape from BillingClient and renders the receipt inline.", emphasis: "info" },
+              { kind: "diff_row", label: "charge() result", before: "{ ok: boolean }", after: "{ status, receiptUrl }", status: "changed" },
+              { kind: "table", caption: "props", columns: ["prop", "type", "change"], rows: [["result", "ChargeResult", "changed"], ["onRetry", "() => void", "added"]] },
+              { kind: "tree", nodes: [{ label: "Checkout", depth: 0, detail: "component" }, { label: "useCharge()", depth: 1 }, { label: "BillingClient.charge", depth: 2, detail: "new seam" }] },
+              { kind: "timeline", steps: [{ label: "wire new result shape", state: "done" }, { label: "update retry UX", state: "active" }, { label: "visual QA", state: "todo" }] },
+            ],
+          },
+          grounding: ["src/components/Checkout.tsx#Checkout", "src/checkout.ts"],
+          fallback_text: "Checkout UI updated for the new charge() result shape; shares checkout.ts with the api lane.",
+        },
+      ],
+      model: "claude-sonnet-4-6",
+      generated_at: now,
+    },
   ],
 };
 

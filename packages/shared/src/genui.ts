@@ -47,6 +47,8 @@ export const WidgetKind = z.enum([
   "resource_diagram",
   "markdown",
   "checklist",
+  // composable layer: a model-assembled body from primitive blocks
+  "composed",
 ]);
 export type WidgetKind = z.infer<typeof WidgetKind>;
 

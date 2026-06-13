@@ -1,6 +1,8 @@
 # Generative-UI Philosophy (the conceptual anchor)
 
 > Status: **Canonical.** Defines what "generative UI" *means* in Trellis — agents emit a validated `LayoutSpec` + `WidgetSpec` rendered from a trusted component registry — and why that is real generative UI, not a chatbot decorated with cards; every other UI doc cites this.
+>
+> **Amended by [mandated-integrations.md](../01-architecture/mandated-integrations.md)** — the "spec, not raw UI" stance is **unchanged**; specs are now delivered over **AG-UI** and rendered via **CopilotKit headless generative UI**, still validated against the trusted registry — never a chatbot. See §6.
 
 ## 1. The core stance
 

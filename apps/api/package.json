@@ -12,7 +12,9 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@ag-ui/core": "0.0.57",
     "@fastify/cors": "^10.0.1",
+    "dotenv": "^16.4.5",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "@supabase/supabase-js": "^2.45.4",
     "@trellis/db": "workspace:*",

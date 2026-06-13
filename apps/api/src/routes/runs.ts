@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { keys } from "@trellis/shared";
 import { authPreHandler } from "../auth.js";
 import { createRedis } from "../queue.js";
+import { env } from "../env.js";
 
 /**
  * SSE relay of the Redis Stream stream:run:{id}. Uses a dedicated blocking
@@ -17,11 +18,18 @@ export async function runRoutes(app: FastifyInstance): Promise<void> {
       const streamKey = keys.runStream(runId);
 
       // Take over the response for manual SSE writes.
+      // SSE bypasses Fastify's reply pipeline (raw writeHead), so @fastify/cors
+      // can't inject headers — reflect the allowed Origin manually.
+      const origin = request.headers.origin;
+      const allowOrigin = origin && env.corsOrigins.includes(origin) ? origin : undefined;
       reply.raw.writeHead(200, {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache, no-transform",
         Connection: "keep-alive",
         "X-Accel-Buffering": "no",
+        ...(allowOrigin
+          ? { "Access-Control-Allow-Origin": allowOrigin, "Access-Control-Allow-Credentials": "true", Vary: "Origin" }
+          : {}),
       });
       // Initial comment flushes headers and primes some proxies.
       reply.raw.write(`: connected to ${streamKey}\n\n`);

@@ -1,6 +1,8 @@
 # Subtree Delegation — the portable plan
 
 > Status: **Canonical.** Defines Trellis's most original primitive: selecting a subtree of a Plan and exporting it as a self-contained, runnable **portable spec** that can be handed to another user or agent, built independently, and merged back. (Delivers **D14**; pillar **P3**.)
+>
+> **Amended by [mandated-integrations.md](../01-architecture/mandated-integrations.md)** — delegation to another user/agent is realized as an **A2A** task hand-off; the portable spec is the A2A message/artifact and results return over the A2A task lifecycle (the `delegations.return` integration step is unchanged). See §3.2.
 
 > **"GitHub for plans."** A pull request makes a *diff* portable. A subtree delegation makes a *unit of planned work* portable — the changes, their dependency structure, the grounded analysis, the exact repo state they were reasoned against, and the contract for putting the results back. You can hand it to a teammate, a contractor, or an autonomous agent, and get a mergeable result back without either side holding the whole plan in their head.
 

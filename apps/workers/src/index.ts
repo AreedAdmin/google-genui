@@ -1,3 +1,4 @@
+import "./load-env.js";
 import { startPlanBuildWorker } from "./workers/plan-build.js";
 import { startAnalysisWorker } from "./workers/analysis.js";
 import { startNodeRunWorker } from "./workers/node-run.js";

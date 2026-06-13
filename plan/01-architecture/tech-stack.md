@@ -1,6 +1,6 @@
 # Tech Stack & Rationale
 
-> Status: **Canonical.** Locks in the technology choices the rest of the plan depends on. The user mandated **Supabase, Redis, Claude, and JS or Python**; this doc explains the exact roles and why the split is the way it is.
+> Status: **Canonical.** Locks in the technology choices the rest of the plan depends on. The user mandated **Supabase, Redis, Claude, and JS or Python**; this doc explains the exact roles and why the split is the way it is. A **second mandate** adds **CopilotKit, AG-UI, A2A, and Linkup** — new rows in the table below; full roles/decisions in [mandated-integrations.md](./mandated-integrations.md).
 
 ## TL;DR
 
@@ -12,6 +12,9 @@
 | Durable data, auth, realtime, storage | **Supabase** (Postgres + Auth + Realtime + Storage) | — | One platform for relational data, multi-tenant RLS, realtime change feeds, and artifact storage. |
 | Queue, cache, locks, pub/sub | **Redis** | — | Task broker (BullMQ), result/index cache, distributed locks for conflict-free parallelism, low-latency streams for logs/tokens/presence. |
 | Reasoning | **Claude** (Opus 4.8 + Sonnet 4.6) | — | Opus for planning/analysis (deep reasoning); Sonnet for high-volume build steps; prompt caching for repo context. |
+| Agent ↔ user (genUI transport) | **AG-UI + CopilotKit** (headless) | TypeScript | Streams agent state to the React Flow canvas via `useCoAgent`/`useCopilotAction`; **canvas-primary, not a chatbox**. AG-UI events emitted from the bespoke loop. See [mandated-integrations.md §3.1, §5, §6](./mandated-integrations.md). |
+| Agent ↔ agent | **A2A** (`@a2a-js/sdk`) | TypeScript | Pluggable runner boundary + subtree delegation, in the Node layer; complements (does **not** replace) BullMQ. See [mandated-integrations.md §3.2](./mandated-integrations.md). |
+| External grounding | **Linkup** | — | Web-search tool in the agent tool-use loop; evidence labelled `web:linkup` vs `repo-symbol`. See [mandated-integrations.md §3.3](./mandated-integrations.md). |
 
 **Why hybrid TS + Python and not one language:** the agent loop, worktree I/O, and realtime all want to live in the same Node runtime as the app (shared types, one deploy story). The *one* concern that is materially better in Python — multi-language static analysis (tree-sitter bindings, graph libraries, AST tooling) — is isolated as a stateless microservice with a clean contract. This gives a principled "both", not an accidental polyglot mess.
 
@@ -94,4 +97,4 @@ Supabase Realtime carries **durable** state changes; Redis carries **ephemeral, 
 - **TS-only (drop Python):** viable with node tree-sitter bindings, but graph/AST ergonomics and future multi-language support are weaker; we keep Python for the one concern that benefits most.
 - **Temporal for orchestration:** powerful but heavy for v1; BullMQ + explicit state in Postgres is enough and simpler to operate. Revisit at platform scale.
 - **A bespoke realtime server (Yjs/CRDT) for the canvas:** deferred — Supabase Realtime + optimistic UI covers v1; CRDT only if true concurrent graph co-editing becomes a hard requirement (`06-appendix/open-questions.md`).
-- **LangChain/LangGraph:** not adopted — the agent graph is small and bespoke; direct SDK + our own orchestration is clearer and easier to evaluate.
+- **LangChain/LangGraph:** not adopted — the agent graph is small and bespoke; direct SDK + our own orchestration is clearer and easier to evaluate. **(Upheld under the second mandate:** the AG-UI requirement is honored by emitting AG-UI events from the bespoke loop, **without** adopting a framework — see [mandated-integrations.md §5](./mandated-integrations.md).)

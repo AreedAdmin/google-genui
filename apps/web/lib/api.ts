@@ -97,6 +97,19 @@ export interface ProjectListItem {
   updated_at: string;
 }
 
+/** A repository the configured GITHUB_TOKEN can access (connect-repo dropdown). */
+export interface AccessibleRepo {
+  full_name: string;
+  name: string;
+  owner: string;
+  url: string;
+  default_branch: string;
+  private: boolean;
+  description: string | null;
+  language: string | null;
+  updated_at: string;
+}
+
 /** A plan summary row for the project / home list. */
 export interface PlanListItem {
   id: string;
@@ -111,14 +124,27 @@ export interface PlanListItem {
 
 export const api = {
   // ---- projects + plans list (home) ----
-  listProjects: (token?: string) =>
-    request<ProjectListItem[]>("/v1/projects", { token }),
+  listProjects: async (token?: string) => {
+    const res = await request<{ data: ProjectListItem[] } | ProjectListItem[]>("/v1/projects", { token });
+    return Array.isArray(res) ? res : (res?.data ?? []);
+  },
+
+  createProject: (
+    body: { name: string; repo_url: string; default_branch?: string; provider?: string },
+    token?: string,
+  ) => request<ProjectListItem>("/v1/projects", { method: "POST", body, token }),
+
+  getProject: (id: string, token?: string) =>
+    request<ProjectListItem>(`/v1/projects/${id}`, { token }),
+
+  listGithubRepos: (token?: string) =>
+    request<{ authenticated: boolean; repos: AccessibleRepo[] }>("/v1/github/repos", { token }),
 
   listPlans: (token?: string) => request<PlanListItem[]>("/v1/plans", { token }),
 
   // ---- plan lifecycle ----
   createPlan: (body: CreatePlanRequest, token?: string) =>
-    request<{ id: string }>("/v1/plans", { method: "POST", body, token }),
+    request<{ plan_id: string }>("/v1/plans", { method: "POST", body, token }),
 
   getPlan: (id: string, token?: string, signal?: AbortSignal) =>
     request<PlanGraph>(`/v1/plans/${id}`, { token, signal }),
