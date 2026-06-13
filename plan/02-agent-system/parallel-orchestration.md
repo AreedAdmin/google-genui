@@ -1,6 +1,8 @@
 # Parallel Orchestration (running branches at once)
 
 > Status: **Canonical.** Defines how multiple branches execute concurrently: a topological enqueue that respects hard edges, parallelization restricted to **ratified / high-confidence-independent** branches, worktree-per-branch isolation enforced by the `lock:file` discipline, concurrency caps + backpressure, and the runtime correction path when the engine's independence prediction turns out wrong.
+>
+> **Amended by [mandated-integrations.md](../01-architecture/mandated-integrations.md)** — dispatch to runners crosses the **A2A** boundary; **BullMQ** remains the internal queue/lock/idempotency layer — the two are distinct layers, do not collapse them. See §3.2.
 
 This is the operational realization of **Pillar P3** (`../README.md`) and **Flow B** (`../01-architecture/high-level-architecture.md`). It composes the single-node loop from `builder-agent.md` across many lanes. The safety thesis is unchanged from `dependency-inference-engine.md §4`: parallelism is *predicted* by the engine and *guaranteed* by physical isolation + distributed locks. The engine being wrong costs lost parallelism and a visible flag — never a corrupted merge.
 

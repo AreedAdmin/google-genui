@@ -1,6 +1,8 @@
 # Shared Prompts & Tools
 
 > Status: **Canonical.** The shared prompt structure, tool catalog, output-schema enforcement, prompt-caching strategy, guardrails, and per-agent prompt skeletons used by **every** Trellis agent — the substrate the [Planner](./planner-agent.md), [Analysis](./analysis-annotation-agent.md), Builder, and Replan agents are built on.
+>
+> **Amended by [mandated-integrations.md](../01-architecture/mandated-integrations.md)** — the tool catalog gains **Linkup** (external web grounding) alongside the analysis-service / file / git / test tools; Linkup evidence is tagged `web:linkup` (vs `repo-symbol`). See §3.3.
 
 ## 1. Principle
 

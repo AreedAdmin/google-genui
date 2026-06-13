@@ -1,6 +1,8 @@
 # Realtime & State
 
 > Status: **Canonical.** Defines the durable-vs-ephemeral state split, the BullMQ queues and their job lifecycles, the Redis Streams/locks/presence mechanics, cache invalidation, the optimistic-UI reconciliation rule, and the authoritative `plan_status`/`node_status` state machines.
+>
+> **Amended by [mandated-integrations.md](./mandated-integrations.md)** — adds an **AG-UI** plane for live agent interaction (consumed by CopilotKit); the durable/ephemeral split here is unchanged. AG-UI feeds the operator's live view; **Supabase Realtime stays the multi-user truth plane** (two-plane hybrid). See §3.1, §4.
 
 This doc operationalizes [ADR-2 (durable vs ephemeral)](./high-level-architecture.md) and [ADR-3 (worktree-per-branch isolation)](./high-level-architecture.md). It consumes the Redis key schema, enums, and tables from [data-model.md](./data-model.md) verbatim, the queues from [tech-stack.md](./tech-stack.md), and feeds the Realtime channels enumerated in [api-design.md §13](./api-design.md).
 

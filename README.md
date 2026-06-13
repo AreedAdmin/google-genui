@@ -1,10 +1,110 @@
+<div align="center">
+
+<sub>🌿</sub>
+
 # Trellis
 
-> Generative-UI agentic coding planner. You describe code work; Trellis produces an **interactive dependency graph** of the changes (grounded analysis per node), lets you **dispatch independent branches in parallel** to a coding agent (Claude Code), and **prune/delegate a subtree** to another user.
+### **The agent's output is software, not an answer.**
 
-The full product/architecture plan lives in [`plan/`](./plan/README.md). This README is the build's quickstart.
+**Trellis is a generative-UI agentic coding planner.** You describe code work at *any* size —
+*"tighten this validator"*, *"add OAuth login"*, *"migrate REST → gRPC across the monorepo"* —
+and Trellis returns something no chat assistant gives you: **a plan you can operate.** An
+interactive dependency graph of the change, where every node carries engineering analysis
+grounded in your *real* symbols, independent work is provably safe to run **in parallel**, and a
+subtree can be **delegated** to another person or agent.
 
-## Monorepo layout
+<br/>
+
+![Next.js](https://img.shields.io/badge/Next.js_15-000?style=flat-square&logo=next.js&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Fastify](https://img.shields.io/badge/Fastify-000?style=flat-square&logo=fastify&logoColor=white)
+![Python](https://img.shields.io/badge/Python_3.11+-3776AB?style=flat-square&logo=python&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=flat-square&logo=supabase&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white)
+![Claude](https://img.shields.io/badge/Claude_Opus_4.8_·_Sonnet_4.6-D97757?style=flat-square&logo=anthropic&logoColor=white)
+
+</div>
+
+---
+
+## 🌱 What is Trellis?
+
+Every coding assistant today returns a chat reply or a single diff, then builds **linearly**.
+Trellis returns a third thing — a **generative, interactive control surface** over a unit of
+engineering work that you can inspect, reshape, run, and hand off:
+
+> **Describe → Plan → Inspect → Iterate → Operate → Delegate.**
+
+It's positioned as **"GitHub for plans"**: decompose a request into a dependency graph, fan the
+independent pieces out to multiple agents on isolated git worktrees, and reconverge them behind a
+test gate — without merge conflicts.
+
+The product rests on **four pillars**:
+
+| | Pillar | What it gives you |
+|:--:|--------|-------------------|
+| 🕸️ | **Plan Graph (DAG)** | Decomposes intent into a dependency graph of change-nodes and marks the branches that are *provably independent* — and therefore safe to parallelize. |
+| 🔬 | **Grounded Analysis** | Every assumption, risk, and benefit cites a real `file#symbol` from your repo — or is flagged low-confidence. No hand-wavy hallucinations. |
+| ⚡ | **Parallel Execution & Delegation** | Dispatch independent branches concurrently to a coding agent (Claude Code, headless); diffs stream back live; integration nodes merge behind a test gate. |
+| 🎨 | **Context-Adaptive Generative UI** | The canvas layout adapts to the *size* of the work (micro fix → mega migration) and each node renders a widget tuned to its *change type* — always from validated specs, never raw model HTML. |
+
+---
+
+## 🔥 The problem we solve
+
+Engineers — and the agents that assist them — **plan in their heads and execute linearly.**
+That breaks down the moment work gets real:
+
+| Today's coding agents | Trellis |
+|-----------------------|---------|
+| Produce a **linear** plan, then build top-to-bottom | Produces a **dependency graph** that exposes what can run in parallel |
+| Dependency reasoning lives in the model's head | A **deterministic engine** decides real edges from your actual symbol graph |
+| Claims are plausible but **unverifiable** | Every claim is **grounded in cited symbols** or labelled low-confidence |
+| One agent, one thread, sequential | **Fan work out** to many agents/people, reconverge cleanly |
+| A wall of chat text, regardless of task size | UI **adapts** to a 1-line fix or a 50-node migration |
+
+The governing principle keeps it trustworthy:
+
+> **LLMs *propose and explain*; deterministic services *enumerate and decide*.**
+> The model never has the last word on a dependency.
+
+The planner (an LLM) proposes coarse touch-sets; a pure dependency engine plus a Python analysis
+service (tree-sitter + networkx) decide the real edges, overlap, and independence. Trellis errs
+on the side of **asymmetric caution** — a false dependency only costs a little parallelism, but a
+false *independence* costs a corrupted merge, so when uncertain it asserts a dependency.
+
+---
+
+## 🏗️ Architecture
+
+Trellis is a **pnpm monorepo** of four runtime services over **Supabase Postgres** (durable
+truth) and **Redis** (ephemeral control plane). It reads as a five-layer cake — requests flow
+*down* the stack, grounded plans and live diffs stream back *up*:
+
+<div align="center">
+
+<img src="docs/architecture.png" alt="Trellis five-layer architecture — Interaction, Orchestration, Agents & Workers, Reasoning Core, Foundation" width="820" />
+
+</div>
+
+| # | Layer | Code | Responsibility |
+|:--:|-------|------|----------------|
+| **1** | **Interaction** | `apps/web` | The generative UI — a Next.js + React Flow canvas, node inspector with five grounded sections + change-type widgets, the `/trellis` slash command (via MCP), and a live-updating canvas. |
+| **2** | **Orchestration** | `apps/api` | A thin Fastify `/v1` control plane: **validate → persist → enqueue → return**. It never blocks on agent work. Includes the MCP server and org-scoped JWT auth. |
+| **3** | **Agents & Workers** | `apps/workers` | A BullMQ fleet: **Planner** (Opus 4.8) → nodes + layout, **Analysis** (Opus 4.8) → grounded cards, **Builder** (Claude Code · Sonnet 4.6) → code on isolated worktrees, **Integration** → merge + test gate. |
+| **4** | **Reasoning Core** ★ | `engine` + `services/analysis` | **The safety core.** A deterministic dependency engine + a Python (tree-sitter / networkx) service that resolve symbols, compute overlap & blast-radius, and decide which branches are *truly* independent. |
+| **5** | **Foundation** | — | **Supabase** Postgres (durable truth: plans, nodes, edges, runs, RLS), **Redis** (queues · locks · live run streams · cache), ephemeral **git worktrees** (one per node), and the **Anthropic** models. |
+
+<sub>The architecture diagram is generated from <a href="docs/architecture.html"><code>docs/architecture.html</code></a> — open it in a browser and screenshot to regenerate <code>docs/architecture.png</code>.</sub>
+
+---
+
+<details>
+<summary><b>🚀 Quickstart &amp; repo layout</b></summary>
+
+<br/>
+
+### Monorepo layout
 
 | Path | What |
 |------|------|
@@ -15,14 +115,14 @@ The full product/architecture plan lives in [`plan/`](./plan/README.md). This RE
 | `packages/shared` | `@trellis/shared` — zod schemas + TS types shared across all TS apps (the contracts) |
 | `packages/db` | `@trellis/db` — Supabase Postgres schema/migrations + typed admin client |
 
-## Prerequisites
+### Prerequisites
 - Node ≥ 20, pnpm ≥ 9
 - Docker (for Redis)
 - [Supabase CLI](https://supabase.com/docs/guides/cli) (`supabase`)
 - Python ≥ 3.11 + [uv](https://docs.astral.sh/uv/) (for the analysis service)
 - [Claude Code](https://docs.claude.com/en/docs/claude-code) on PATH (the build runner)
 
-## Quickstart
+### Run it
 ```bash
 cp .env.example .env          # fill in keys (see comments in that file)
 pnpm install                  # install all TS workspaces
@@ -37,4 +137,8 @@ pnpm dev
 
 App: http://localhost:3000 · API: http://localhost:8080 · Analysis: http://localhost:8000
 
-See each package's own `README.md` for details. Scope is the **MVP** described in `.env.example` and `plan/00-overview/scope.md`.
+The full product/architecture plan lives in [`plan/`](./plan/README.md); the complete as-built
+reference is [`context.mmd`](./context.mmd). Scope is the **MVP** described in `.env.example` and
+`plan/00-overview/scope.md`.
+
+</details>

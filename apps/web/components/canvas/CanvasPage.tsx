@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePlanGraph, useRunNodes } from "@/lib/hooks";
 import { useCanvasStore } from "@/lib/store";
 import { subscribeRunStream } from "@/lib/api";
+import { useAgentStream } from "@/lib/agui";
 import { GraphCanvas } from "./GraphCanvas";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { SelectionBanner } from "./SelectionBanner";
@@ -23,6 +24,9 @@ import type { Run } from "@trellis/shared";
 export function CanvasPage({ planId }: { planId: string }) {
   const { data: graph, isLoading, isError } = usePlanGraph(planId);
   const runMutation = useRunNodes(planId);
+  // AG-UI: stream the agent's plan/run state onto the canvas (headless CopilotKit;
+  // mandated-integrations.md §3.1). Additive — durable truth still flows via React Query.
+  useAgentStream(planId);
 
   const selectedNodeId = useCanvasStore((s) => s.selectedNodeId);
   const selectNode = useCanvasStore((s) => s.selectNode);

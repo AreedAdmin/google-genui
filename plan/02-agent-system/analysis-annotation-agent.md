@@ -1,6 +1,8 @@
 # Analysis / Annotation Agent (P2)
 
 > Status: **Canonical.** Per Node, this agent produces the **five inspector sections** (Assumptions, Analysis/risks, Benefits, Notable variables & objects) and the per-node `WidgetSpec[]` — under one non-negotiable rule: **every claim cites a real symbol/file (`grounded_refs`) from the [analysis service](./dependency-inference-engine.md#7-data-contracts-analysis-service-api), or is labeled low-confidence.** Hallucination is the enemy of trust.
+>
+> **Amended by [mandated-integrations.md](../01-architecture/mandated-integrations.md)** — annotations may cite **external** evidence via **Linkup**, tagged `web:linkup` and kept distinct from `repo-symbol` grounding so the "grounded in real symbols" rule still holds. See §3.3.
 
 ## 1. Role & guiding theme
 

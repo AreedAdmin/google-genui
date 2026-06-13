@@ -20,5 +20,7 @@ export const keys = {
   lockNode: (id: string) => `lock:node:${id}`,
   lockFile: (project: string, path: string) => `lock:file:${project}:${path}`,
   runStream: (runId: string) => `stream:run:${runId}`,
+  /** AG-UI structured-event stream per plan (mandated-integrations.md §3.1). */
+  guiStream: (planId: string) => `stream:gui:${planId}`,
   presence: (planId: string) => `presence:plan:${planId}`,
 };

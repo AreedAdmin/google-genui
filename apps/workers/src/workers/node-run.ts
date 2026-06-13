@@ -7,6 +7,7 @@ import { env } from "../env.js";
 import { ensureRepo, createWorktree, diffWorktree, changedFiles, detectTestCommand } from "../worktree.js";
 import { getRunner } from "../runners/index.js";
 import { RunStream } from "../stream.js";
+import { GuiStream } from "../gui-stream.js";
 import { logger } from "../log.js";
 
 const log = logger("node-run");
@@ -93,6 +94,10 @@ async function handleNodeRun(job: Job<NodeRunData>): Promise<void> {
 
   const stream = new RunStream(runId);
   await stream.emit("status", { state: "queued", node_id });
+
+  // AG-UI: structured lifecycle/status events for this node run drive the canvas.
+  const gui = new GuiStream(node.plan_id);
+  await gui.runStarted(runId);
 
   const touchSet = (node.touch_set ?? { predicted: { add: [], modify: [], delete: [] } }) as TouchSet;
 
@@ -185,6 +190,8 @@ async function handleNodeRun(job: Job<NodeRunData>): Promise<void> {
     });
 
     await stream.emit("status", { state: finalNodeStatus, summary: result.summary });
+    await gui.custom("node_status", { node_id, status: finalNodeStatus });
+    await gui.runFinished(runId);
     log.info(`node ${node_id} -> ${finalNodeStatus} (${touched.length} files, ${drift.length} drift)`);
 
     // GC the worktree (object data preserved via the diff result already stored).
@@ -198,7 +205,10 @@ async function handleNodeRun(job: Job<NodeRunData>): Promise<void> {
     await supabase.from("plan_nodes").update({ status: "failed" }).eq("id", node_id);
     await recordEvent(node.plan_id, "node.failed", { node_id, error: (err as Error).message });
     await stream.emit("error", { message: (err as Error).message });
+    await gui.runError((err as Error).message);
+    await gui.custom("node_status", { node_id, status: "failed" });
   } finally {
     await stream.close();
+    await gui.close();
   }
 }

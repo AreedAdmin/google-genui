@@ -1,0 +1,1727 @@
+{
+  "plan": {
+    "id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+    "project_id": "00000000-0000-0000-0000-000000000100",
+    "title": "Add a notifications feature as three independent workstreams that can be built in parallel by different engineers, with ",
+    "prompt": "Add a notifications feature as three independent workstreams that can be built in parallel by different engineers, with no dependencies between the streams: (1) a notifications database table plus its migration, (2) a REST API with send and list endpoints, and (3) a settings UI panel to toggle notification types. Emphasize that the three lanes are independent.",
+    "granularity": "g2_meso",
+    "status": "ready",
+    "base_commit": "b07eac099753833b29d06c614149904445739776",
+    "current_revision": 1,
+    "layout_spec": {
+      "tier": "g2_meso",
+      "canvas": "swimlane_dag",
+      "emphasis": [
+        "independence",
+        "parallel_lanes"
+      ],
+      "grouping": "by_module",
+      "direction": "LR",
+      "delegation_ui": "per_lane",
+      "semantic_zoom": false,
+      "parallelism_ui": "dispatch_parallel",
+      "default_inspector_tab": "contract"
+    },
+    "created_by": "00000000-0000-0000-0000-000000000001",
+    "created_at": "2026-06-13T13:28:44.852603+00:00",
+    "updated_at": "2026-06-13T13:29:14.819+00:00"
+  },
+  "nodes": [
+    {
+      "id": "1391324b-1a9c-4d17-b722-e21b0eb71143",
+      "plan_id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+      "revision": 1,
+      "title": "Notifications table migration",
+      "change_type": "migration",
+      "granularity": "g2_meso",
+      "status": "pending",
+      "summary": "Create the notifications database table with id, sender_id, recipient_id, notification_type, content, read_status, and timestamps. Purely backend; independent of API and UI lanes.",
+      "touch_set": {
+        "resolved": {
+          "files": [
+            "migrations/0001_create_notifications_table.sql",
+            "db/schema/notifications.js"
+          ],
+          "symbols": [
+            "migrations/0001_create_notifications_table.sql#create_notifications_table",
+            "db/schema/notifications.js#notifications"
+          ],
+          "config_keys": [],
+          "schema_keys": [],
+          "signatures_changed": []
+        },
+        "predicted": {
+          "add": [
+            {
+              "file": "migrations/0001_create_notifications_table.sql",
+              "kind": "migration",
+              "name": "create_notifications_table"
+            },
+            {
+              "file": "db/schema/notifications.js",
+              "kind": "schema",
+              "name": "notifications"
+            }
+          ],
+          "delete": [],
+          "modify": []
+        },
+        "resolution_confidence": 0.4
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "branch_id": "952f3f49-688d-4bbe-b5b9-ebafaf90fb69",
+      "parent_node_id": null,
+      "worktree_ref": null,
+      "diff_artifact_path": null,
+      "confidence": 0.4,
+      "created_at": "2026-06-13T13:29:14.695178+00:00",
+      "updated_at": "2026-06-13T13:29:14.695178+00:00"
+    },
+    {
+      "id": "a1fe6595-1c3c-4961-b622-ae2801ba91e1",
+      "plan_id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+      "revision": 1,
+      "title": "Notifications migration test",
+      "change_type": "test",
+      "granularity": "g2_meso",
+      "status": "pending",
+      "summary": "Verify the notifications table migration applies and rolls back, and that the schema columns match the expected contract.",
+      "touch_set": {
+        "resolved": {
+          "files": [
+            "test/notifications.migration.test.js"
+          ],
+          "symbols": [
+            "test/notifications.migration.test.js#notifications_migration_test"
+          ],
+          "config_keys": [],
+          "schema_keys": [],
+          "signatures_changed": []
+        },
+        "predicted": {
+          "add": [
+            {
+              "file": "test/notifications.migration.test.js",
+              "kind": "test",
+              "name": "notifications_migration_test"
+            }
+          ],
+          "delete": [],
+          "modify": []
+        },
+        "resolution_confidence": 0.4
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "branch_id": "1e94e6ce-7a1b-4f50-9d87-d5eb8e47b0ec",
+      "parent_node_id": null,
+      "worktree_ref": null,
+      "diff_artifact_path": null,
+      "confidence": 0.4,
+      "created_at": "2026-06-13T13:29:14.695178+00:00",
+      "updated_at": "2026-06-13T13:29:14.695178+00:00"
+    },
+    {
+      "id": "8e623c3c-30a7-46ad-999d-0e10ba921b6a",
+      "plan_id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+      "revision": 1,
+      "title": "Notifications REST API (send + list)",
+      "change_type": "api_contract",
+      "granularity": "g2_meso",
+      "status": "pending",
+      "summary": "Expose POST /notifications/send to store a notification and GET /notifications to list notifications for a user with pagination/filtering. Independent API lane.",
+      "touch_set": {
+        "resolved": {
+          "files": [
+            "src/routes/notifications.js",
+            "src/controllers/notifications.js"
+          ],
+          "symbols": [
+            "src/routes/notifications.js#POST /notifications/send",
+            "src/routes/notifications.js#GET /notifications",
+            "src/controllers/notifications.js#notificationsController"
+          ],
+          "config_keys": [],
+          "schema_keys": [],
+          "signatures_changed": []
+        },
+        "predicted": {
+          "add": [
+            {
+              "file": "src/routes/notifications.js",
+              "kind": "route",
+              "name": "POST /notifications/send"
+            },
+            {
+              "file": "src/routes/notifications.js",
+              "kind": "route",
+              "name": "GET /notifications"
+            },
+            {
+              "file": "src/controllers/notifications.js",
+              "kind": "controller",
+              "name": "notificationsController"
+            }
+          ],
+          "delete": [],
+          "modify": []
+        },
+        "resolution_confidence": 0.4
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "branch_id": "244676cf-56eb-4ae1-867a-8d083ac6229e",
+      "parent_node_id": null,
+      "worktree_ref": null,
+      "diff_artifact_path": null,
+      "confidence": 0.4,
+      "created_at": "2026-06-13T13:29:14.695178+00:00",
+      "updated_at": "2026-06-13T13:29:14.695178+00:00"
+    },
+    {
+      "id": "d85d2702-5fa2-4aea-a139-37b8ffbfcf55",
+      "plan_id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+      "revision": 1,
+      "title": "Notifications API test",
+      "change_type": "test",
+      "granularity": "g2_meso",
+      "status": "pending",
+      "summary": "Cover the send and list endpoints: payload validation, persistence on send, and pagination/filtering on list.",
+      "touch_set": {
+        "resolved": {
+          "files": [
+            "test/notifications.api.test.js"
+          ],
+          "symbols": [
+            "test/notifications.api.test.js#notifications_api_test"
+          ],
+          "config_keys": [],
+          "schema_keys": [],
+          "signatures_changed": []
+        },
+        "predicted": {
+          "add": [
+            {
+              "file": "test/notifications.api.test.js",
+              "kind": "test",
+              "name": "notifications_api_test"
+            }
+          ],
+          "delete": [],
+          "modify": []
+        },
+        "resolution_confidence": 0.4
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "branch_id": "e00c23bb-fb05-4856-8cd5-74603af633be",
+      "parent_node_id": null,
+      "worktree_ref": null,
+      "diff_artifact_path": null,
+      "confidence": 0.4,
+      "created_at": "2026-06-13T13:29:14.695178+00:00",
+      "updated_at": "2026-06-13T13:29:14.695178+00:00"
+    },
+    {
+      "id": "cf17af35-cc44-4a1f-bc3c-6f0377757e45",
+      "plan_id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+      "revision": 1,
+      "title": "Notification settings UI panel",
+      "change_type": "ui_component",
+      "granularity": "g2_meso",
+      "status": "pending",
+      "summary": "Settings panel allowing users to toggle notification types on/off, managing user preferences. Independent UI lane focused solely on preference management.",
+      "touch_set": {
+        "resolved": {
+          "files": [
+            "src/components/NotificationSettingsPanel.jsx",
+            "src/components/NotificationTypeToggle.jsx"
+          ],
+          "symbols": [
+            "src/components/NotificationSettingsPanel.jsx#NotificationSettingsPanel",
+            "src/components/NotificationTypeToggle.jsx#NotificationTypeToggle"
+          ],
+          "config_keys": [],
+          "schema_keys": [],
+          "signatures_changed": []
+        },
+        "predicted": {
+          "add": [
+            {
+              "file": "src/components/NotificationSettingsPanel.jsx",
+              "kind": "component",
+              "name": "NotificationSettingsPanel"
+            },
+            {
+              "file": "src/components/NotificationTypeToggle.jsx",
+              "kind": "component",
+              "name": "NotificationTypeToggle"
+            }
+          ],
+          "delete": [],
+          "modify": []
+        },
+        "resolution_confidence": 0.4
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "branch_id": "ab7f405e-1667-4698-a4a3-e66dcb8ee449",
+      "parent_node_id": null,
+      "worktree_ref": null,
+      "diff_artifact_path": null,
+      "confidence": 0.4,
+      "created_at": "2026-06-13T13:29:14.695178+00:00",
+      "updated_at": "2026-06-13T13:29:14.695178+00:00"
+    },
+    {
+      "id": "23fa8196-f32b-495f-b402-303579b9910a",
+      "plan_id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+      "revision": 1,
+      "title": "Notification settings UI test",
+      "change_type": "test",
+      "granularity": "g2_meso",
+      "status": "pending",
+      "summary": "Verify the settings panel renders notification type toggles and emits preference changes correctly.",
+      "touch_set": {
+        "resolved": {
+          "files": [
+            "test/NotificationSettingsPanel.test.jsx"
+          ],
+          "symbols": [
+            "test/NotificationSettingsPanel.test.jsx#notification_settings_ui_test"
+          ],
+          "config_keys": [],
+          "schema_keys": [],
+          "signatures_changed": []
+        },
+        "predicted": {
+          "add": [
+            {
+              "file": "test/NotificationSettingsPanel.test.jsx",
+              "kind": "test",
+              "name": "notification_settings_ui_test"
+            }
+          ],
+          "delete": [],
+          "modify": []
+        },
+        "resolution_confidence": 0.4
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "branch_id": "c775d7c3-4e61-4ed2-b807-d1ffed814dc9",
+      "parent_node_id": null,
+      "worktree_ref": null,
+      "diff_artifact_path": null,
+      "confidence": 0.4,
+      "created_at": "2026-06-13T13:29:14.695178+00:00",
+      "updated_at": "2026-06-13T13:29:14.695178+00:00"
+    }
+  ],
+  "edges": [
+    {
+      "id": "fc7b79ee-4102-4261-a547-085900650506",
+      "plan_id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+      "revision": 1,
+      "from_node": "1391324b-1a9c-4d17-b722-e21b0eb71143",
+      "to_node": "a1fe6595-1c3c-4961-b622-ae2801ba91e1",
+      "type": "soft_order",
+      "rationale": "planner soft order: Notifications table migration before Notifications migration test",
+      "evidence": {
+        "reason": "sequence",
+        "shared": [],
+        "to_consumes": [],
+        "from_provides": [],
+        "overlap_score": 0
+      },
+      "overlap_score": 0
+    },
+    {
+      "id": "1d52aa48-bf9b-44ce-a7c4-c5820c12dbc7",
+      "plan_id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+      "revision": 1,
+      "from_node": "8e623c3c-30a7-46ad-999d-0e10ba921b6a",
+      "to_node": "d85d2702-5fa2-4aea-a139-37b8ffbfcf55",
+      "type": "soft_order",
+      "rationale": "planner soft order: Notifications REST API (send + list) before Notifications API test",
+      "evidence": {
+        "reason": "sequence",
+        "shared": [],
+        "to_consumes": [],
+        "from_provides": [],
+        "overlap_score": 0
+      },
+      "overlap_score": 0
+    },
+    {
+      "id": "3062e9bb-0301-476d-b85e-15f55e93c096",
+      "plan_id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+      "revision": 1,
+      "from_node": "cf17af35-cc44-4a1f-bc3c-6f0377757e45",
+      "to_node": "23fa8196-f32b-495f-b402-303579b9910a",
+      "type": "soft_order",
+      "rationale": "planner soft order: Notification settings UI panel before Notification settings UI test",
+      "evidence": {
+        "reason": "sequence",
+        "shared": [],
+        "to_consumes": [],
+        "from_provides": [],
+        "overlap_score": 0
+      },
+      "overlap_score": 0
+    }
+  ],
+  "branches": [
+    {
+      "id": "952f3f49-688d-4bbe-b5b9-ebafaf90fb69",
+      "plan_id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+      "label": "Notifications table migration",
+      "node_ids": [
+        "1391324b-1a9c-4d17-b722-e21b0eb71143"
+      ],
+      "status": "idle",
+      "assignee_user_id": null,
+      "worktree_path": null,
+      "independent_of": [
+        "1e94e6ce-7a1b-4f50-9d87-d5eb8e47b0ec",
+        "244676cf-56eb-4ae1-867a-8d083ac6229e",
+        "e00c23bb-fb05-4856-8cd5-74603af633be",
+        "ab7f405e-1667-4698-a4a3-e66dcb8ee449",
+        "c775d7c3-4e61-4ed2-b807-d1ffed814dc9"
+      ],
+      "created_at": "2026-06-13T13:29:13.909889+00:00"
+    },
+    {
+      "id": "1e94e6ce-7a1b-4f50-9d87-d5eb8e47b0ec",
+      "plan_id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+      "label": "Notifications migration test",
+      "node_ids": [
+        "a1fe6595-1c3c-4961-b622-ae2801ba91e1"
+      ],
+      "status": "idle",
+      "assignee_user_id": null,
+      "worktree_path": null,
+      "independent_of": [
+        "952f3f49-688d-4bbe-b5b9-ebafaf90fb69",
+        "244676cf-56eb-4ae1-867a-8d083ac6229e",
+        "e00c23bb-fb05-4856-8cd5-74603af633be",
+        "ab7f405e-1667-4698-a4a3-e66dcb8ee449",
+        "c775d7c3-4e61-4ed2-b807-d1ffed814dc9"
+      ],
+      "created_at": "2026-06-13T13:29:13.909889+00:00"
+    },
+    {
+      "id": "244676cf-56eb-4ae1-867a-8d083ac6229e",
+      "plan_id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+      "label": "Notifications REST API (send + list)",
+      "node_ids": [
+        "8e623c3c-30a7-46ad-999d-0e10ba921b6a"
+      ],
+      "status": "idle",
+      "assignee_user_id": null,
+      "worktree_path": null,
+      "independent_of": [
+        "952f3f49-688d-4bbe-b5b9-ebafaf90fb69",
+        "1e94e6ce-7a1b-4f50-9d87-d5eb8e47b0ec",
+        "e00c23bb-fb05-4856-8cd5-74603af633be",
+        "ab7f405e-1667-4698-a4a3-e66dcb8ee449",
+        "c775d7c3-4e61-4ed2-b807-d1ffed814dc9"
+      ],
+      "created_at": "2026-06-13T13:29:13.909889+00:00"
+    },
+    {
+      "id": "e00c23bb-fb05-4856-8cd5-74603af633be",
+      "plan_id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+      "label": "Notifications API test",
+      "node_ids": [
+        "d85d2702-5fa2-4aea-a139-37b8ffbfcf55"
+      ],
+      "status": "idle",
+      "assignee_user_id": null,
+      "worktree_path": null,
+      "independent_of": [
+        "952f3f49-688d-4bbe-b5b9-ebafaf90fb69",
+        "1e94e6ce-7a1b-4f50-9d87-d5eb8e47b0ec",
+        "244676cf-56eb-4ae1-867a-8d083ac6229e",
+        "ab7f405e-1667-4698-a4a3-e66dcb8ee449",
+        "c775d7c3-4e61-4ed2-b807-d1ffed814dc9"
+      ],
+      "created_at": "2026-06-13T13:29:13.909889+00:00"
+    },
+    {
+      "id": "ab7f405e-1667-4698-a4a3-e66dcb8ee449",
+      "plan_id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+      "label": "Notification settings UI panel",
+      "node_ids": [
+        "cf17af35-cc44-4a1f-bc3c-6f0377757e45"
+      ],
+      "status": "idle",
+      "assignee_user_id": null,
+      "worktree_path": null,
+      "independent_of": [
+        "952f3f49-688d-4bbe-b5b9-ebafaf90fb69",
+        "1e94e6ce-7a1b-4f50-9d87-d5eb8e47b0ec",
+        "244676cf-56eb-4ae1-867a-8d083ac6229e",
+        "e00c23bb-fb05-4856-8cd5-74603af633be",
+        "c775d7c3-4e61-4ed2-b807-d1ffed814dc9"
+      ],
+      "created_at": "2026-06-13T13:29:13.909889+00:00"
+    },
+    {
+      "id": "c775d7c3-4e61-4ed2-b807-d1ffed814dc9",
+      "plan_id": "3b0810f0-9d9e-4562-a00f-71ea5dcc9d4d",
+      "label": "Notification settings UI test",
+      "node_ids": [
+        "23fa8196-f32b-495f-b402-303579b9910a"
+      ],
+      "status": "idle",
+      "assignee_user_id": null,
+      "worktree_path": null,
+      "independent_of": [
+        "952f3f49-688d-4bbe-b5b9-ebafaf90fb69",
+        "1e94e6ce-7a1b-4f50-9d87-d5eb8e47b0ec",
+        "244676cf-56eb-4ae1-867a-8d083ac6229e",
+        "e00c23bb-fb05-4856-8cd5-74603af633be",
+        "ab7f405e-1667-4698-a4a3-e66dcb8ee449"
+      ],
+      "created_at": "2026-06-13T13:29:13.909889+00:00"
+    }
+  ],
+  "annotations": [
+    {
+      "node_id": "a1fe6595-1c3c-4961-b622-ae2801ba91e1",
+      "revision": 1,
+      "assumptions": [
+        {
+          "text": "A notifications table migration with both up (apply) and down (rollback) paths exists for this test to exercise.",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "test/notifications.migration.test.js#notifications_migration_test"
+          ]
+        },
+        {
+          "text": "The test asserts a specific column contract (names/types) for the notifications table, since schema_keys are not enumerated in the touch-set.",
+          "confidence": 0.35,
+          "grounded_refs": [
+            "test/notifications.migration.test.js"
+          ]
+        },
+        {
+          "text": "The test runs against a real or ephemeral database harness capable of applying and reverting migrations.",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "test/notifications.migration.test.js#notifications_migration_test"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "kind": "edge_case",
+          "text": "Rollback may not fully restore the prior state (e.g. leftover indexes or sequences), so a passing up-migration with a partial down-migration could still pass naively without asserting clean teardown.",
+          "severity": "medium",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "test/notifications.migration.test.js#notifications_migration_test"
+          ]
+        },
+        {
+          "kind": "failure_mode",
+          "text": "Test may leave the database in a dirty state if it fails between apply and rollback, polluting subsequent test runs unless wrapped in proper setup/teardown.",
+          "severity": "medium",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "test/notifications.migration.test.js"
+          ]
+        },
+        {
+          "kind": "edge_case",
+          "text": "The expected schema contract is not pinned in the touch-set (schema_keys empty); the assertion list could drift from the actual migration without detection.",
+          "severity": "low",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "test/notifications.migration.test.js#notifications_migration_test"
+          ]
+        },
+        {
+          "kind": "perf",
+          "text": "Spinning up a DB and running real migrations per test invocation can be slow; without a shared fixture this adds CI latency.",
+          "severity": "low",
+          "confidence": 0.3,
+          "grounded_refs": [
+            "test/notifications.migration.test.js"
+          ]
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Provides regression protection that the notifications migration both applies and reverses cleanly, guarding against irreversible schema changes.",
+          "grounded_refs": [
+            "test/notifications.migration.test.js#notifications_migration_test"
+          ]
+        },
+        {
+          "text": "Pins the notifications schema column contract so unintended column drift is caught at test time.",
+          "grounded_refs": [
+            "test/notifications.migration.test.js"
+          ]
+        }
+      ],
+      "notable_symbols": [
+        {
+          "file": "test/notifications.migration.test.js",
+          "role": "consumer",
+          "symbol": "notifications_migration_test",
+          "why_notable": "The sole test entry point that drives the migration apply/rollback and asserts the column contract; reviewers must confirm it covers both directions and verifies teardown cleanliness."
+        }
+      ],
+      "widget_specs": [
+        {
+          "props": {
+            "items": [
+              {
+                "label": "Migration applies (up) successfully",
+                "state": "active",
+                "detail": "Asserts notifications table is created."
+              },
+              {
+                "label": "Migration rolls back (down) successfully",
+                "state": "todo",
+                "detail": "Asserts table/indexes removed cleanly."
+              },
+              {
+                "label": "Schema columns match expected contract",
+                "state": "todo",
+                "detail": "Verify column names/types against pinned contract."
+              },
+              {
+                "label": "Setup/teardown isolates DB state",
+                "state": "blocked",
+                "detail": "Needs proper fixture so failures don't pollute other tests."
+              }
+            ],
+            "title": "Notifications migration test coverage"
+          },
+          "widget": "checklist",
+          "version": 1,
+          "grounding": [
+            "test/notifications.migration.test.js#notifications_migration_test"
+          ],
+          "fallback_text": "Checklist: apply, rollback, schema-contract, and isolation coverage for the notifications migration test."
+        },
+        {
+          "props": {
+            "title": "Test rationale",
+            "markdown": "# Notifications migration test\n- Exercises **up** and **down** paths of the notifications migration\n- Asserts the `notifications` column contract\n- Risk: empty `schema_keys` means the expected contract is not pinned in the touch-set\n- Ensure `notifications_migration_test` wraps DB state in setup/teardown"
+          },
+          "widget": "markdown",
+          "version": 1,
+          "grounding": [
+            "test/notifications.migration.test.js#notifications_migration_test"
+          ],
+          "fallback_text": "Rationale: verifies apply/rollback and column contract for the notifications migration."
+        }
+      ],
+      "model": "claude-opus-4-8",
+      "tokens": 3772,
+      "cost": 0,
+      "generated_at": "2026-06-13T13:29:33.753+00:00"
+    },
+    {
+      "node_id": "d85d2702-5fa2-4aea-a139-37b8ffbfcf55",
+      "revision": 1,
+      "assumptions": [
+        {
+          "text": "The send endpoint persists a notification record on success, which the test asserts after issuing a send request.",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "test/notifications.api.test.js#notifications_api_test"
+          ]
+        },
+        {
+          "text": "The list endpoint supports pagination and filtering query parameters that the test exercises.",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "test/notifications.api.test.js#notifications_api_test"
+          ]
+        },
+        {
+          "text": "Tests run against a test database or in-memory store that is seeded/reset between cases so persistence and pagination assertions are deterministic.",
+          "confidence": 0.35,
+          "grounded_refs": [
+            "test/notifications.api.test.js"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "kind": "edge_case",
+          "text": "Payload validation tests may not cover all invalid shapes (missing recipient, empty body, oversized payload), leaving validation gaps unverified.",
+          "severity": "medium",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "test/notifications.api.test.js#notifications_api_test"
+          ]
+        },
+        {
+          "kind": "failure_mode",
+          "text": "Persistence assertions on send depend on shared DB/store state; without per-test cleanup, leftover rows can cause pagination/filtering assertions to flake.",
+          "severity": "medium",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "test/notifications.api.test.js#notifications_api_test"
+          ]
+        },
+        {
+          "kind": "edge_case",
+          "text": "Pagination boundary conditions (empty page, last page, page beyond range, default page size) may be under-tested, allowing off-by-one regressions to pass.",
+          "severity": "low",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "test/notifications.api.test.js#notifications_api_test"
+          ]
+        },
+        {
+          "kind": "perf",
+          "text": "Filtering tests that seed large datasets to verify pagination can slow the suite if not bounded to minimal fixtures.",
+          "severity": "low",
+          "confidence": 0.3,
+          "grounded_refs": [
+            "test/notifications.api.test.js"
+          ]
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Establishes regression coverage for both send and list endpoints, catching payload-validation and pagination/filtering breakages before release.",
+          "grounded_refs": [
+            "test/notifications.api.test.js#notifications_api_test"
+          ]
+        },
+        {
+          "text": "Asserts persistence-on-send, documenting the expected side effect of the send endpoint as executable behavior.",
+          "grounded_refs": [
+            "test/notifications.api.test.js#notifications_api_test"
+          ]
+        }
+      ],
+      "notable_symbols": [
+        {
+          "file": "test/notifications.api.test.js",
+          "role": "consumer",
+          "symbol": "notifications_api_test",
+          "why_notable": "Top-level test suite exercising the notifications send/list endpoints; the sole symbol in this node's touch-set."
+        }
+      ],
+      "widget_specs": [
+        {
+          "props": {
+            "items": [
+              {
+                "label": "Send: rejects invalid payloads (validation)",
+                "state": "todo",
+                "detail": "Cover missing recipient, empty body, and malformed fields."
+              },
+              {
+                "label": "Send: persists notification on success",
+                "state": "todo",
+                "detail": "Assert a record exists after a successful send."
+              },
+              {
+                "label": "List: returns paginated results",
+                "state": "todo",
+                "detail": "Verify page size, page navigation, and boundary pages."
+              },
+              {
+                "label": "List: filtering returns matching subset",
+                "state": "todo",
+                "detail": "Assert filter params narrow results correctly."
+              },
+              {
+                "label": "Per-test state reset/cleanup",
+                "state": "blocked",
+                "detail": "Needed so persistence and pagination assertions stay deterministic."
+              }
+            ],
+            "title": "Notifications API test coverage"
+          },
+          "widget": "checklist",
+          "version": 1,
+          "grounding": [
+            "test/notifications.api.test.js#notifications_api_test",
+            "test/notifications.api.test.js"
+          ],
+          "fallback_text": "Checklist of send/list test cases: payload validation, persistence on send, pagination, filtering, and per-test cleanup."
+        },
+        {
+          "props": {
+            "title": "Test scope & gaps",
+            "markdown": "# Notifications API test scope\n- **Send**: payload `validation` and persistence side effect\n- **List**: `pagination` and `filtering`\n- Edge cases to add: empty page, last page, page beyond range\n- Ensure per-test DB/store reset to avoid flaky `pagination` assertions"
+          },
+          "widget": "markdown",
+          "version": 1,
+          "grounding": [
+            "test/notifications.api.test.js#notifications_api_test"
+          ],
+          "fallback_text": "Scope covers send validation/persistence and list pagination/filtering; add boundary cases and ensure state reset."
+        }
+      ],
+      "model": "claude-opus-4-8",
+      "tokens": 3837,
+      "cost": 0,
+      "generated_at": "2026-06-13T13:29:34.108+00:00"
+    },
+    {
+      "node_id": "cf17af35-cc44-4a1f-bc3c-6f0377757e45",
+      "revision": 1,
+      "assumptions": [
+        {
+          "text": "NotificationSettingsPanel renders a list of NotificationTypeToggle children, one per notification type, and owns the source of preference state.",
+          "confidence": 0.55,
+          "grounded_refs": [
+            "src/components/NotificationSettingsPanel.jsx#NotificationSettingsPanel",
+            "src/components/NotificationTypeToggle.jsx#NotificationTypeToggle"
+          ]
+        },
+        {
+          "text": "NotificationTypeToggle is a controlled component receiving a boolean value and an onChange callback rather than managing its own internal state.",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "src/components/NotificationTypeToggle.jsx#NotificationTypeToggle"
+          ]
+        },
+        {
+          "text": "This is an independent UI-only lane; no backend persistence endpoint or schema is part of this node's touch-set, so saving preferences is assumed handled elsewhere.",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "src/components/NotificationSettingsPanel.jsx#NotificationSettingsPanel"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "kind": "edge_case",
+          "text": "If the panel mounts before preferences load, toggles may render in an indeterminate or default-off state and silently overwrite real preferences on first interaction. No loading/empty state is evident in the touch-set.",
+          "severity": "medium",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "src/components/NotificationSettingsPanel.jsx#NotificationSettingsPanel"
+          ]
+        },
+        {
+          "kind": "race_condition",
+          "text": "Rapid toggling could fire overlapping persistence/onChange calls; without debounce or optimistic-state reconciliation the UI may flicker or land on a stale value if persistence is async.",
+          "severity": "medium",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "src/components/NotificationTypeToggle.jsx#NotificationTypeToggle",
+            "src/components/NotificationSettingsPanel.jsx#NotificationSettingsPanel"
+          ]
+        },
+        {
+          "kind": "failure_mode",
+          "text": "A toggle save failure (network/error) is not represented in the touch-set; the toggle could appear flipped while the underlying preference never persisted, misleading the user.",
+          "severity": "medium",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "src/components/NotificationTypeToggle.jsx#NotificationTypeToggle"
+          ]
+        },
+        {
+          "kind": "security",
+          "text": "Notification type labels/keys rendered from data should be treated as trusted; if any label is user- or server-supplied it must be escaped to avoid injection in the toggle row.",
+          "severity": "low",
+          "confidence": 0.3,
+          "grounded_refs": [
+            "src/components/NotificationTypeToggle.jsx#NotificationTypeToggle"
+          ]
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Isolating preference management into a dedicated panel and reusable toggle component keeps notification settings self-contained and testable without coupling to other settings lanes.",
+          "grounded_refs": [
+            "src/components/NotificationSettingsPanel.jsx#NotificationSettingsPanel",
+            "src/components/NotificationTypeToggle.jsx#NotificationTypeToggle"
+          ]
+        },
+        {
+          "text": "NotificationTypeToggle as a single reusable control lets new notification types be added by data alone, reducing per-type UI duplication.",
+          "grounded_refs": [
+            "src/components/NotificationTypeToggle.jsx#NotificationTypeToggle"
+          ]
+        }
+      ],
+      "notable_symbols": [
+        {
+          "file": "src/components/NotificationSettingsPanel.jsx",
+          "role": "provider",
+          "symbol": "NotificationSettingsPanel",
+          "why_notable": "Top-level panel that holds preference state and orchestrates the toggle list; primary surface a reviewer must inspect."
+        },
+        {
+          "file": "src/components/NotificationTypeToggle.jsx",
+          "role": "consumer",
+          "symbol": "NotificationTypeToggle",
+          "why_notable": "Reusable per-type control receiving value/onChange from the panel; correctness of controlled-component contract lives here."
+        }
+      ],
+      "widget_specs": [
+        {
+          "props": {
+            "name": "NotificationSettingsPanel",
+            "props": [
+              {
+                "name": "preferences",
+                "type": "Record<string, boolean>",
+                "default": "{}",
+                "required": true
+              },
+              {
+                "name": "onChange",
+                "type": "(typeKey: string, enabled: boolean) => void",
+                "default": "undefined",
+                "required": true
+              },
+              {
+                "name": "loading",
+                "type": "boolean",
+                "default": "false",
+                "required": false
+              }
+            ],
+            "states": [
+              {
+                "label": "Default",
+                "propsJson": "{\"preferences\":{\"email\":true,\"push\":false},\"loading\":false}"
+              },
+              {
+                "label": "Loading",
+                "propsJson": "{\"preferences\":{},\"loading\":true}"
+              },
+              {
+                "label": "All enabled",
+                "propsJson": "{\"preferences\":{\"email\":true,\"push\":true,\"sms\":true},\"loading\":false}"
+              }
+            ],
+            "preview": {
+              "mode": "skeleton"
+            },
+            "framework": "react"
+          },
+          "widget": "component_preview",
+          "version": 1,
+          "grounding": [
+            "src/components/NotificationSettingsPanel.jsx#NotificationSettingsPanel",
+            "src/components/NotificationTypeToggle.jsx#NotificationTypeToggle"
+          ],
+          "fallback_text": "NotificationSettingsPanel: react component rendering NotificationTypeToggle rows from a preferences map."
+        },
+        {
+          "props": {
+            "name": "NotificationTypeToggle",
+            "props": [
+              {
+                "name": "label",
+                "type": "string",
+                "default": "undefined",
+                "required": true
+              },
+              {
+                "name": "value",
+                "type": "boolean",
+                "default": "false",
+                "required": true
+              },
+              {
+                "name": "onChange",
+                "type": "(enabled: boolean) => void",
+                "default": "undefined",
+                "required": true
+              },
+              {
+                "name": "disabled",
+                "type": "boolean",
+                "default": "false",
+                "required": false
+              }
+            ],
+            "states": [
+              {
+                "label": "On",
+                "propsJson": "{\"label\":\"Email\",\"value\":true}"
+              },
+              {
+                "label": "Off",
+                "propsJson": "{\"label\":\"Push\",\"value\":false}"
+              },
+              {
+                "label": "Disabled",
+                "propsJson": "{\"label\":\"SMS\",\"value\":false,\"disabled\":true}"
+              }
+            ],
+            "preview": {
+              "mode": "skeleton"
+            },
+            "framework": "react"
+          },
+          "widget": "component_preview",
+          "version": 1,
+          "grounding": [
+            "src/components/NotificationTypeToggle.jsx#NotificationTypeToggle"
+          ],
+          "fallback_text": "NotificationTypeToggle: controlled boolean toggle row with label and onChange."
+        },
+        {
+          "props": {
+            "items": [
+              {
+                "label": "Render toggle row per notification type from preferences map",
+                "state": "active",
+                "detail": "NotificationSettingsPanel maps preferences to NotificationTypeToggle"
+              },
+              {
+                "label": "Handle loading state before preferences resolve",
+                "state": "todo",
+                "detail": "Avoid overwriting real prefs on first interaction"
+              },
+              {
+                "label": "Reflect save failure / revert toggle on error",
+                "state": "todo",
+                "detail": "No error path visible in touch-set"
+              },
+              {
+                "label": "Confirm controlled-component contract (value + onChange)",
+                "state": "todo",
+                "detail": "NotificationTypeToggle should not hold internal state"
+              }
+            ],
+            "title": "UI panel review checklist"
+          },
+          "widget": "checklist",
+          "version": 1,
+          "grounding": [
+            "src/components/NotificationSettingsPanel.jsx#NotificationSettingsPanel",
+            "src/components/NotificationTypeToggle.jsx#NotificationTypeToggle"
+          ],
+          "fallback_text": "Checklist covering toggle rendering, loading, error revert, and controlled-component contract."
+        }
+      ],
+      "model": "claude-opus-4-8",
+      "tokens": 4880,
+      "cost": 0,
+      "generated_at": "2026-06-13T13:29:41.882+00:00"
+    },
+    {
+      "node_id": "1391324b-1a9c-4d17-b722-e21b0eb71143",
+      "revision": 1,
+      "assumptions": [
+        {
+          "text": "The notifications table is being created fresh with no prior version, so this is a forward-only create with no existing data to backfill.",
+          "confidence": 0.7,
+          "grounded_refs": [
+            "migrations/0001_create_notifications_table.sql#create_notifications_table"
+          ]
+        },
+        {
+          "text": "sender_id and recipient_id are foreign keys referencing a users table, even though the referenced table is not present in this node's touch-set.",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "db/schema/notifications.js#notifications"
+          ]
+        },
+        {
+          "text": "read_status defaults to an unread state (e.g. boolean false) so newly inserted notifications appear unread.",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "db/schema/notifications.js#notifications"
+          ]
+        },
+        {
+          "text": "notification_type is stored as a constrained string/enum rather than free text, given the fixed summary wording.",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "db/schema/notifications.js#notifications"
+          ]
+        },
+        {
+          "text": "The schema definition in db/schema/notifications.js is intended to stay in sync with the raw SQL migration as the ORM/source-of-truth mirror.",
+          "confidence": 0.6,
+          "grounded_refs": [
+            "db/schema/notifications.js#notifications",
+            "migrations/0001_create_notifications_table.sql#create_notifications_table"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "kind": "edge_case",
+          "text": "If sender_id/recipient_id are declared as foreign keys but the referenced users table or migration order is not guaranteed, the CREATE TABLE can fail on a fresh database where the parent table does not yet exist.",
+          "severity": "high",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "migrations/0001_create_notifications_table.sql#create_notifications_table"
+          ]
+        },
+        {
+          "kind": "perf",
+          "text": "Notification queries are typically filtered by recipient_id and read_status; without an index on (recipient_id, read_status) the unread-count and feed queries will degrade to full scans as the table grows.",
+          "severity": "medium",
+          "confidence": 0.6,
+          "grounded_refs": [
+            "migrations/0001_create_notifications_table.sql#create_notifications_table",
+            "db/schema/notifications.js#notifications"
+          ]
+        },
+        {
+          "kind": "failure_mode",
+          "text": "Migration reversibility is unspecified; if no down/rollback is provided the create cannot be cleanly reverted in a failed deploy, leaving an orphaned table.",
+          "severity": "medium",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "migrations/0001_create_notifications_table.sql#create_notifications_table"
+          ]
+        },
+        {
+          "kind": "edge_case",
+          "text": "Drift risk: the SQL migration and the db/schema/notifications.js definition can diverge (column types, nullability, defaults) since they are maintained as two artifacts of the same table.",
+          "severity": "medium",
+          "confidence": 0.55,
+          "grounded_refs": [
+            "db/schema/notifications.js#notifications",
+            "migrations/0001_create_notifications_table.sql#create_notifications_table"
+          ]
+        },
+        {
+          "kind": "security",
+          "text": "content is user-influenced text; if stored without length bounds it permits unbounded payloads, and downstream consumers must treat it as untrusted on render.",
+          "severity": "low",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "db/schema/notifications.js#notifications"
+          ]
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Establishes a single backend source of truth for notification persistence that API and UI lanes can build against independently.",
+          "grounded_refs": [
+            "migrations/0001_create_notifications_table.sql#create_notifications_table",
+            "db/schema/notifications.js#notifications"
+          ]
+        },
+        {
+          "text": "Modeling read_status and timestamps at the schema level enables unread-count and chronological feed queries without application-side bookkeeping.",
+          "grounded_refs": [
+            "db/schema/notifications.js#notifications"
+          ]
+        },
+        {
+          "text": "Keeping the change confined to the migration and schema mirror keeps the blast radius isolated from API/UI work, reducing cross-lane coordination.",
+          "grounded_refs": [
+            "migrations/0001_create_notifications_table.sql#create_notifications_table"
+          ]
+        }
+      ],
+      "notable_symbols": [
+        {
+          "file": "migrations/0001_create_notifications_table.sql",
+          "role": "mutated",
+          "symbol": "create_notifications_table",
+          "why_notable": "The DDL that creates the table; defines columns, keys, defaults and any indexes \u2014 the authoritative shape applied to the database."
+        },
+        {
+          "file": "db/schema/notifications.js",
+          "role": "provider",
+          "symbol": "notifications",
+          "why_notable": "The application-layer schema/model mirror that downstream API code will import; must match the SQL migration exactly to avoid drift."
+        }
+      ],
+      "widget_specs": [
+        {
+          "props": {
+            "after": {
+              "table": "notifications",
+              "columns": [
+                {
+                  "fk": null,
+                  "pk": true,
+                  "name": "id",
+                  "type": "bigint",
+                  "nullable": false
+                },
+                {
+                  "fk": "users.id",
+                  "pk": false,
+                  "name": "sender_id",
+                  "type": "bigint",
+                  "nullable": false
+                },
+                {
+                  "fk": "users.id",
+                  "pk": false,
+                  "name": "recipient_id",
+                  "type": "bigint",
+                  "nullable": false
+                },
+                {
+                  "fk": null,
+                  "pk": false,
+                  "name": "notification_type",
+                  "type": "varchar",
+                  "nullable": false
+                },
+                {
+                  "fk": null,
+                  "pk": false,
+                  "name": "content",
+                  "type": "text",
+                  "nullable": true
+                },
+                {
+                  "fk": null,
+                  "pk": false,
+                  "name": "read_status",
+                  "type": "boolean",
+                  "nullable": false
+                },
+                {
+                  "fk": null,
+                  "pk": false,
+                  "name": "created_at",
+                  "type": "timestamptz",
+                  "nullable": false
+                },
+                {
+                  "fk": null,
+                  "pk": false,
+                  "name": "updated_at",
+                  "type": "timestamptz",
+                  "nullable": false
+                }
+              ],
+              "indexes": [
+                {
+                  "cols": [
+                    "recipient_id",
+                    "read_status"
+                  ],
+                  "name": "idx_notifications_recipient_read",
+                  "unique": false
+                },
+                {
+                  "cols": [
+                    "sender_id"
+                  ],
+                  "name": "idx_notifications_sender",
+                  "unique": false
+                }
+              ]
+            },
+            "before": null,
+            "ordering": {
+              "reversible": false,
+              "must_run_after": [
+                "users table migration"
+              ]
+            }
+          },
+          "widget": "schema_diff",
+          "version": 1,
+          "grounding": [
+            "migrations/0001_create_notifications_table.sql#create_notifications_table",
+            "db/schema/notifications.js#notifications"
+          ],
+          "fallback_text": "Creates notifications table (id pk, sender_id/recipient_id fk->users, notification_type, content, read_status, created_at, updated_at)."
+        },
+        {
+          "props": {
+            "items": [
+              {
+                "label": "Verify FK ordering: notifications runs after users table",
+                "state": "todo",
+                "detail": "sender_id/recipient_id reference users.id"
+              },
+              {
+                "label": "Add index on (recipient_id, read_status) for unread/feed queries",
+                "state": "todo",
+                "detail": "Avoids full scans as table grows"
+              },
+              {
+                "label": "Provide a reversible down/rollback for the create",
+                "state": "todo",
+                "detail": "Migration reversibility currently unspecified"
+              },
+              {
+                "label": "Confirm db/schema/notifications.js matches SQL DDL (types, nullability, defaults)",
+                "state": "active",
+                "detail": "Prevent schema drift between mirror and migration"
+              },
+              {
+                "label": "Bound content length / treat as untrusted downstream",
+                "state": "todo"
+              }
+            ],
+            "title": "Migration review"
+          },
+          "widget": "checklist",
+          "version": 1,
+          "grounding": [
+            "migrations/0001_create_notifications_table.sql#create_notifications_table",
+            "db/schema/notifications.js#notifications"
+          ],
+          "fallback_text": "Checklist: FK ordering, recipient/read index, rollback, schema-mirror sync, content bounds."
+        }
+      ],
+      "model": "claude-opus-4-8",
+      "tokens": 4981,
+      "cost": 0,
+      "generated_at": "2026-06-13T13:29:42.849+00:00"
+    },
+    {
+      "node_id": "23fa8196-f32b-495f-b402-303579b9910a",
+      "revision": 1,
+      "assumptions": [
+        {
+          "text": "The test targets a NotificationSettingsPanel component that renders one toggle per notification type.",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "test/NotificationSettingsPanel.test.jsx#notification_settings_ui_test"
+          ]
+        },
+        {
+          "text": "The component emits preference changes via a callback prop (e.g. onChange/onPreferenceChange) asserted by the test.",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "test/NotificationSettingsPanel.test.jsx"
+          ]
+        },
+        {
+          "text": "Rendering is exercised with a component testing library (React Testing Library / Jest) consistent with the .test.jsx convention.",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "test/NotificationSettingsPanel.test.jsx"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "kind": "edge_case",
+          "text": "Test may only cover the default toggle state and miss the case where all notification types are disabled or a preference value is missing, leaving rendering-of-empty-state unverified.",
+          "severity": "medium",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "test/NotificationSettingsPanel.test.jsx#notification_settings_ui_test"
+          ]
+        },
+        {
+          "kind": "failure_mode",
+          "text": "Asserting on emitted preference changes via a callback can be flaky if the change handler fires asynchronously and the test does not await the update.",
+          "severity": "medium",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "test/NotificationSettingsPanel.test.jsx#notification_settings_ui_test"
+          ]
+        },
+        {
+          "kind": "edge_case",
+          "text": "Querying toggles by visible label couples the test to copy text; localized or renamed labels would break selection without a stable test id.",
+          "severity": "low",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "test/NotificationSettingsPanel.test.jsx"
+          ]
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Locks in the rendering contract for notification toggles, catching regressions where a notification type stops rendering.",
+          "grounded_refs": [
+            "test/NotificationSettingsPanel.test.jsx#notification_settings_ui_test"
+          ]
+        },
+        {
+          "text": "Verifies the preference-change emission so downstream consumers of the change event keep receiving correct payloads.",
+          "grounded_refs": [
+            "test/NotificationSettingsPanel.test.jsx"
+          ]
+        }
+      ],
+      "notable_symbols": [
+        {
+          "file": "test/NotificationSettingsPanel.test.jsx",
+          "role": "consumer",
+          "symbol": "notification_settings_ui_test",
+          "why_notable": "The test case asserting both toggle rendering and preference-change emission; the sole symbol in the touch-set and the entry point a reviewer must read."
+        }
+      ],
+      "widget_specs": [
+        {
+          "props": {
+            "items": [
+              {
+                "label": "Renders a toggle per notification type",
+                "state": "active",
+                "detail": "Asserts each notification type produces a visible toggle control."
+              },
+              {
+                "label": "Reflects initial preference state on toggles",
+                "state": "todo",
+                "detail": "Verify on/off state matches provided preferences."
+              },
+              {
+                "label": "Emits preference change on toggle interaction",
+                "state": "active",
+                "detail": "Asserts the change callback fires with the updated preference payload."
+              },
+              {
+                "label": "Handles empty / all-disabled preference set",
+                "state": "todo",
+                "detail": "Edge case not clearly covered by the current touch-set."
+              },
+              {
+                "label": "Awaits async change handler before asserting",
+                "state": "blocked",
+                "detail": "Guards against flaky assertions on async updates."
+              }
+            ],
+            "title": "Notification settings UI test coverage"
+          },
+          "widget": "checklist",
+          "version": 1,
+          "grounding": [
+            "test/NotificationSettingsPanel.test.jsx#notification_settings_ui_test"
+          ],
+          "fallback_text": "Checklist of UI test coverage for the notification settings panel."
+        },
+        {
+          "props": {
+            "title": "Test rationale",
+            "markdown": "# Notification settings UI test\n- Verifies `NotificationSettingsPanel` renders **notification type toggles**\n- Asserts **preference changes** are emitted via the change callback\n- Low resolution confidence: component-under-test not in touch-set, so assertions are inferred from the test file name and summary"
+          },
+          "widget": "markdown",
+          "version": 1,
+          "grounding": [
+            "test/NotificationSettingsPanel.test.jsx"
+          ],
+          "fallback_text": "Rationale: test renders notification toggles and verifies preference-change emission."
+        }
+      ],
+      "model": "claude-opus-4-8",
+      "tokens": 3783,
+      "cost": 0,
+      "generated_at": "2026-06-13T13:30:32.224+00:00"
+    },
+    {
+      "node_id": "8e623c3c-30a7-46ad-999d-0e10ba921b6a",
+      "revision": 1,
+      "assumptions": [
+        {
+          "text": "Both endpoints are wired through notificationsController, which contains the send and list handler logic.",
+          "confidence": 0.55,
+          "grounded_refs": [
+            "src/controllers/notifications.js#notificationsController",
+            "src/routes/notifications.js#POST /notifications/send"
+          ]
+        },
+        {
+          "text": "GET /notifications supports pagination and filtering query parameters (e.g. user, limit, offset) per the node summary.",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "src/routes/notifications.js#GET /notifications"
+          ]
+        },
+        {
+          "text": "POST /notifications/send persists a notification record to a backing store, though no schema_keys are listed in the touch-set so the persistence layer is not resolved here.",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "src/routes/notifications.js#POST /notifications/send",
+            "src/controllers/notifications.js#notificationsController"
+          ]
+        },
+        {
+          "text": "The notifications API is an independent lane and does not modify shared signatures or config (signatures_changed and config_keys are empty).",
+          "confidence": 0.6,
+          "grounded_refs": [
+            "src/routes/notifications.js",
+            "src/controllers/notifications.js"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "kind": "security",
+          "text": "GET /notifications lists notifications 'for a user' but the touch-set shows no auth or ownership enforcement symbol; without scoping by the authenticated principal, a user could read another user's notifications via a forged user filter.",
+          "severity": "high",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "src/routes/notifications.js#GET /notifications",
+            "src/controllers/notifications.js#notificationsController"
+          ]
+        },
+        {
+          "kind": "edge_case",
+          "text": "Pagination/filtering params on GET /notifications need validation (non-numeric limit/offset, negative values, oversized limit). Unbounded limit can return the full table.",
+          "severity": "medium",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "src/routes/notifications.js#GET /notifications",
+            "src/controllers/notifications.js#notificationsController"
+          ]
+        },
+        {
+          "kind": "failure_mode",
+          "text": "POST /notifications/send lacks visible request-body validation in the touch-set; missing required fields (recipient, message) could persist malformed notifications or throw uncaught errors.",
+          "severity": "medium",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "src/routes/notifications.js#POST /notifications/send",
+            "src/controllers/notifications.js#notificationsController"
+          ]
+        },
+        {
+          "kind": "perf",
+          "text": "A list endpoint without an enforced max page size or indexed filter column can degrade as the notifications volume grows; the persistence/index strategy is unresolved (no schema_keys in touch-set).",
+          "severity": "low",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "src/routes/notifications.js#GET /notifications",
+            "src/controllers/notifications.js#notificationsController"
+          ]
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Consolidates both write (send) and read (list) notification flows behind a single controller, keeping the API lane self-contained and independently deployable.",
+          "grounded_refs": [
+            "src/controllers/notifications.js#notificationsController",
+            "src/routes/notifications.js"
+          ]
+        },
+        {
+          "text": "Pagination/filtering on GET /notifications lets clients fetch user-scoped slices instead of full result sets, supporting responsive notification UIs.",
+          "grounded_refs": [
+            "src/routes/notifications.js#GET /notifications"
+          ]
+        }
+      ],
+      "notable_symbols": [
+        {
+          "file": "src/routes/notifications.js",
+          "role": "provider",
+          "symbol": "POST /notifications/send",
+          "why_notable": "New write endpoint that stores a notification; entry point for input validation and persistence concerns."
+        },
+        {
+          "file": "src/routes/notifications.js",
+          "role": "provider",
+          "symbol": "GET /notifications",
+          "why_notable": "New read endpoint with pagination/filtering; primary surface for authz scoping and query validation."
+        },
+        {
+          "file": "src/controllers/notifications.js",
+          "role": "mutated",
+          "symbol": "notificationsController",
+          "why_notable": "Holds the handler logic for both endpoints; the single place where validation, auth scoping, and store access converge."
+        }
+      ],
+      "widget_specs": [
+        {
+          "props": {
+            "path": "/notifications/send",
+            "method": "POST",
+            "request": {
+              "body": [
+                {
+                  "name": "userId",
+                  "type": "string",
+                  "change": "added",
+                  "required": true
+                },
+                {
+                  "name": "type",
+                  "type": "string",
+                  "change": "added",
+                  "required": false
+                },
+                {
+                  "name": "message",
+                  "type": "string",
+                  "change": "added",
+                  "required": true
+                }
+              ],
+              "query": [],
+              "params": []
+            },
+            "breaking": [
+              {
+                "why": "Missing required fields on POST /notifications/send may persist malformed records or throw",
+                "what": "No request-body validation visible in touch-set",
+                "severity": "medium"
+              }
+            ],
+            "responses": [
+              {
+                "body": [
+                  {
+                    "name": "id",
+                    "type": "string"
+                  },
+                  {
+                    "name": "createdAt",
+                    "type": "string"
+                  }
+                ],
+                "status": 201,
+                "description": "Notification stored"
+              },
+              {
+                "body": [],
+                "status": 400,
+                "description": "Validation error (missing/invalid body)"
+              },
+              {
+                "body": [],
+                "status": 401,
+                "description": "Unauthenticated"
+              }
+            ]
+          },
+          "widget": "api_contract",
+          "version": 1,
+          "grounding": [
+            "src/routes/notifications.js#POST /notifications/send",
+            "src/controllers/notifications.js#notificationsController"
+          ],
+          "fallback_text": "POST /notifications/send: stores a notification {userId, type?, message} -> 201 {id, createdAt}."
+        },
+        {
+          "props": {
+            "path": "/notifications",
+            "method": "GET",
+            "request": {
+              "body": [],
+              "query": [
+                {
+                  "name": "userId",
+                  "type": "string",
+                  "change": "added",
+                  "required": false
+                },
+                {
+                  "name": "limit",
+                  "type": "integer",
+                  "change": "added",
+                  "required": false
+                },
+                {
+                  "name": "offset",
+                  "type": "integer",
+                  "change": "added",
+                  "required": false
+                }
+              ],
+              "params": []
+            },
+            "breaking": [
+              {
+                "why": "A forged userId filter could expose another user's notifications",
+                "what": "List may not be scoped to the authenticated user",
+                "severity": "high"
+              },
+              {
+                "why": "Unbounded limit can return the full result set",
+                "what": "No enforced max page size",
+                "severity": "low"
+              }
+            ],
+            "responses": [
+              {
+                "body": [
+                  {
+                    "name": "items",
+                    "type": "Notification[]"
+                  },
+                  {
+                    "name": "total",
+                    "type": "integer"
+                  }
+                ],
+                "status": 200,
+                "description": "Paginated list of notifications for the user"
+              },
+              {
+                "body": [],
+                "status": 400,
+                "description": "Invalid pagination/filter params"
+              },
+              {
+                "body": [],
+                "status": 401,
+                "description": "Unauthenticated"
+              }
+            ]
+          },
+          "widget": "api_contract",
+          "version": 1,
+          "grounding": [
+            "src/routes/notifications.js#GET /notifications",
+            "src/controllers/notifications.js#notificationsController"
+          ],
+          "fallback_text": "GET /notifications?userId&limit&offset -> 200 {items, total}."
+        },
+        {
+          "props": {
+            "items": [
+              {
+                "label": "Scope GET /notifications to the authenticated user (authz)",
+                "state": "todo",
+                "detail": "Do not trust client-supplied userId for ownership."
+              },
+              {
+                "label": "Validate POST /notifications/send body (required recipient/message)",
+                "state": "todo"
+              },
+              {
+                "label": "Validate and bound pagination params (limit/offset)",
+                "state": "todo",
+                "detail": "Reject negatives; cap max limit."
+              },
+              {
+                "label": "Confirm persistence layer + index for filter column",
+                "state": "todo",
+                "detail": "No schema_keys resolved in touch-set."
+              }
+            ],
+            "title": "Notifications API review gaps"
+          },
+          "widget": "checklist",
+          "version": 1,
+          "grounding": [
+            "src/routes/notifications.js#GET /notifications",
+            "src/routes/notifications.js#POST /notifications/send",
+            "src/controllers/notifications.js#notificationsController"
+          ],
+          "fallback_text": "Open items: authz scoping, body validation, pagination bounds, persistence/index confirmation."
+        }
+      ],
+      "model": "claude-opus-4-8",
+      "tokens": 4913,
+      "cost": 0,
+      "generated_at": "2026-06-13T13:30:41.302+00:00"
+    }
+  ]
+}

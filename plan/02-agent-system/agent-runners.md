@@ -1,6 +1,8 @@
 # Agent Runners (pluggable execution backends)
 
 > Status: **Canonical.** Defines how an approved `plan_node` is actually *coded*: the **Runner** abstraction. Trellis is an orchestration/planning layer; the real coding is done by a **selectable agentic coding tool** ("runner") that has access to the repo and spins up to fulfil one node's work order inside an isolated worktree. **For v1 / the demo, the runner is Claude Code (headless).** The runner is pluggable so users can choose the agentic model that has access to their code.
+>
+> **Amended by [mandated-integrations.md](../01-architecture/mandated-integrations.md)** — the Runner boundary is realized as an **A2A** interface: the orchestrator is the A2A client and each runner an A2A remote agent (Claude Code = one A2A runner in v1). Internal orchestration stays on BullMQ. See §3.2.
 
 This is the answer to "once we approve a plan, how do the agents begin coding?" It sits between [parallel-orchestration.md](./parallel-orchestration.md) (which decides *what* to dispatch and *when*) and [integration-merge.md](./integration-merge.md) (which reconverges the results). It generalizes [builder-agent.md](./builder-agent.md), which is now the built-in **native runner** — one implementation of the interface defined here.
 

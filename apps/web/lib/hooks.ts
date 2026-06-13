@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import type { PlanGraph } from "@trellis/shared";
-import { api, type PlanListItem } from "./api";
+import { api, type PlanListItem, type ProjectListItem, type AccessibleRepo } from "./api";
 import { getAccessToken, subscribePlanRealtime } from "./supabase";
 import { getFixturePlan, FIXTURE_PLAN_LIST } from "./fixtures";
 import { useCanvasStore } from "./store";
@@ -27,6 +27,50 @@ export function usePlanList() {
       }
     },
     staleTime: 15_000,
+  });
+}
+
+/** Projects (connected repos) for the active org. Empty list on API failure. */
+export function useProjects() {
+  return useQuery<ProjectListItem[]>({
+    queryKey: ["projects"],
+    queryFn: async () => {
+      try {
+        const token = await getAccessToken();
+        return await api.listProjects(token);
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 30_000,
+  });
+}
+
+/** Connect a new repo (POST /v1/projects); the server validates it before saving. */
+export function useCreateProject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { name: string; repo_url: string; default_branch?: string }) => {
+      const token = await getAccessToken();
+      return api.createProject(body, token);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+  });
+}
+
+/** Repos the configured GITHUB_TOKEN can access — for the connect-repo dropdown. */
+export function useGithubRepos() {
+  return useQuery<{ authenticated: boolean; repos: AccessibleRepo[] }>({
+    queryKey: ["github-repos"],
+    queryFn: async () => {
+      try {
+        const token = await getAccessToken();
+        return await api.listGithubRepos(token);
+      } catch {
+        return { authenticated: false, repos: [] };
+      }
+    },
+    staleTime: 60_000,
   });
 }
 

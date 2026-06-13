@@ -1,3 +1,4 @@
+import "./load-env.js";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { env } from "./env.js";
@@ -10,6 +11,7 @@ import { branchRoutes } from "./routes/branches.js";
 import { nodeRoutes } from "./routes/nodes.js";
 import { shareRoutes } from "./routes/shares.js";
 import { runRoutes } from "./routes/runs.js";
+import { aguiRoutes } from "./routes/agui.js";
 import { fileURLToPath } from "node:url";
 
 /**
@@ -50,6 +52,7 @@ export async function buildServer() {
       await nodeRoutes(v1);
       await shareRoutes(v1);
       await runRoutes(v1);
+      await aguiRoutes(v1);
     },
     { prefix: "/v1" },
   );

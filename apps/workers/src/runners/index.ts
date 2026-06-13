@@ -1,6 +1,7 @@
 import type { AgentRunner, ExecutionBackend } from "@trellis/shared";
 import { ClaudeCodeRunner } from "./claude-code.js";
 import { NativeRunner } from "./native.js";
+import { A2aRemoteRunner } from "./a2a.js";
 import { logger } from "../log.js";
 
 const log = logger("runner-registry");
@@ -13,6 +14,7 @@ const log = logger("runner-registry");
 const registry: Record<ExecutionBackend, () => AgentRunner> = {
   claude_code: () => new ClaudeCodeRunner(),
   native: () => new NativeRunner(),
+  a2a_remote: () => new A2aRemoteRunner(),
 };
 
 export function getRunner(backend: string | null | undefined): AgentRunner {
@@ -25,4 +27,4 @@ export function getRunner(backend: string | null | undefined): AgentRunner {
   return make();
 }
 
-export { ClaudeCodeRunner, NativeRunner };
+export { ClaudeCodeRunner, NativeRunner, A2aRemoteRunner };

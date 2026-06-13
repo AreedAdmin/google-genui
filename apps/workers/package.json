@@ -11,7 +11,11 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@a2a-js/sdk": "^0.3.13",
+    "@ag-ui/core": "0.0.57",
     "@anthropic-ai/sdk": "^0.70.0",
+    "dotenv": "^16.4.5",
+    "linkup-sdk": "^3.2.5",
     "@supabase/supabase-js": "^2.45.4",
     "@trellis/db": "workspace:*",
     "@trellis/shared": "workspace:*",

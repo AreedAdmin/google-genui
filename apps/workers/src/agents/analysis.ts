@@ -37,6 +37,7 @@ const widgetKindEnum: WidgetKind[] = [
   "resource_diagram",
   "markdown",
   "checklist",
+  "composed",
 ];
 
 const EMIT_ANNOTATIONS_SCHEMA: JsonSchema = {
@@ -130,6 +131,24 @@ const WIDGET_FOR_CHANGE_TYPE: Record<ChangeType, WidgetKind> = {
   docs: "markdown",
 };
 
+/**
+ * Compact per-widget props shape, fed to the model so emitted props pass the
+ * client's zod schemas (shape drift is the #1 cause of fallback renders). These
+ * MUST stay in lockstep with the client widget schemas in apps/web/components/widgets.
+ */
+const WIDGET_PROPS_HINT: Record<WidgetKind, string> = {
+  schema_diff: `{ before:{table,columns:[{name,type,nullable,pk,fk}]}|null, after:{table,columns:[...],indexes:[{name,cols:[],unique}]}|null, ordering?:{must_run_after:[],reversible} }`,
+  api_contract: `{ method, path, request:{params:[],query:[],body:[{name,type,required,change:added|removed|changed|unchanged}]}, responses:[{status,description?,body:[]}], breaking:[{what,why,severity:low|medium|high}] }`,
+  component_preview: `{ name, framework:"react", props:[{name,type,required,default}], states:[{label,propsJson}], preview:{mode:"skeleton"} }`,
+  call_graph_impact: `{ root, affected:[{symbol,file,relation:root|caller|callee|transitive,depth,risk:none|signature|behavior}], blast_radius:{files,symbols,crosses_branches}, truncated }`,
+  key_diff: `{ keys:[{key,before,after,scope:env|di|config,consumers:[]}] }`,
+  test_linkage: `{ links:[{test,file?,covers:[symbol],status:passing|failing|missing|new}], uncovered:[symbol] }`,
+  resource_diagram: `{ resources:[{id,name,kind,change:added|modified|removed|unchanged}], links:[{from:id,to:id,label?}] }`,
+  markdown: `{ title?, markdown:"# heading\\n- bullet\\n\`code\` and **bold**" }`,
+  checklist: `{ title?, items:[{label,state:done|active|todo|blocked,detail?}] }`,
+  composed: `{ title?, blocks:[ one or more of: {kind:"stat",label,value,delta?,tone:pos|neg|neutral} | {kind:"table",caption?,columns:[str],rows:[[str]]} | {kind:"tree",nodes:[{label,depth,detail?}]} | {kind:"diff_row",label?,before,after,status:added|removed|changed|unchanged} | {kind:"timeline",steps:[{label,state:done|active|todo|blocked,detail?}]} | {kind:"text",body,emphasis:info|warn|muted} ] }`,
+};
+
 const SYSTEM = `You are Trellis's Analysis/Annotation agent. For ONE plan node you produce the five inspector sections and the node's widget specs.
 
 Hard rules (analysis-annotation-agent.md):
@@ -138,7 +157,8 @@ Hard rules (analysis-annotation-agent.md):
 - "analysis" is the RISK register: each entry needs a kind in {race_condition, failure_mode, edge_case, perf, security}, a severity in {low, medium, high}, and >=1 grounded_refs.
 - notable_symbols are the real symbols a reviewer must know (role: provider | consumer | mutated).
 - Do NOT restate the diff as a benefit. Do NOT fabricate symbols that aren't in the touch-set.
-- Emit at least one WidgetSpec, keyed by the node's change_type, with grounded props (never raw HTML).`;
+- WIDGETS: emit the PRIMARY widget for the node's change_type, PLUS any secondary widgets the touch-set genuinely supports (compose 1-3 total). Examples: a migration that also changes an endpoint -> schema_diff + api_contract; a refactor -> call_graph_impact + a short markdown rationale; a test node -> checklist + test_linkage. Match each widget's props shape exactly and ground every widget. Never emit raw HTML.
+- For a node whose change does NOT fit a named widget, use the "composed" widget: assemble a body from primitive blocks (stat | table | tree | diff_row | timeline | text). Prefer a named widget when one fits; reach for "composed" when none does.`;
 
 export interface AnalysisInput {
   projectId: string;
@@ -167,6 +187,9 @@ export async function runAnalysis(input: AnalysisInput): Promise<{ annotation: E
   }
 
   const expectedWidget = WIDGET_FOR_CHANGE_TYPE[input.changeType];
+  // Offer the primary widget plus the two universally-applicable secondaries, with shapes.
+  const offered: WidgetKind[] = [...new Set<WidgetKind>([expectedWidget, "checklist", "markdown", "composed"])];
+  const widgetHints = offered.map((w) => `- ${w}: ${WIDGET_PROPS_HINT[w]}`).join("\n");
 
   const userPrompt = `# Node
 Title: ${input.title}
@@ -182,7 +205,10 @@ config_keys: ${JSON.stringify(resolved?.config_keys ?? [])}
 resolution_confidence: ${input.touchSet.resolution_confidence ?? "unknown"}
 ${blastSummary ? `\n# Blast radius\n${blastSummary}` : ""}
 
-Write the five sections grounded in the refs above. Then emit at least one widget_spec; the primary widget for a "${input.changeType}" node is "${expectedWidget}". Call emit_annotations now.`;
+Write the five sections grounded in the refs above. Then emit widget_specs: the PRIMARY for a "${input.changeType}" node is "${expectedWidget}", plus any secondary widget the touch-set supports (1-3 total). Match these prop shapes exactly:
+${widgetHints}
+
+Call emit_annotations now.`;
 
   const { data, tokens } = await toolForcedJSON({
     model: env.analysisModel,

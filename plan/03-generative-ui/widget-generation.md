@@ -1,6 +1,8 @@
 # Generative Widgets — Per-Node WidgetSpec Generation & Rendering
 
 > Status: **Canonical.** Specifies how an agent produces a validated `WidgetSpec` and how the client renders it from a **trusted component registry** — never raw model HTML — for the four MVP change-type widgets and the phase-2 widgets.
+>
+> **Amended by [mandated-integrations.md](../01-architecture/mandated-integrations.md)** — WidgetSpecs may be rendered via **CopilotKit generative UI** (`useCopilotAction` render / `useCoAgentStateRender`) against the same trusted component registry — never raw model HTML. See §6, §4.
 
 This is the **second axis** of Trellis's two-axis generative UI: where [`granularity-layouts.md`](./granularity-layouts.md) governs the *canvas* (`Layout = f(granularity × change_type × context)`), this doc governs the *node body* — the widget(s) rendered inside a node and its inspector. It is the headline of the generative-UI assessment: **the agents compose each node's content per-plan from validated specs, adaptive yet production-safe.** Read [`granularity-layouts.md`](./granularity-layouts.md) §4–5 first; this builds on the `change_type → widget` table and the validation-against-registry gate without re-deriving them.
 

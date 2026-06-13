@@ -7,6 +7,7 @@ import {
 } from "@trellis/shared";
 import { toolForcedJSON, type JsonSchema } from "../anthropic.js";
 import { env } from "../env.js";
+import { webSearch } from "./linkup.js";
 import { logger } from "../log.js";
 
 const log = logger("planner");
@@ -200,7 +201,12 @@ Hard rules (planner-agent.md):
 - Decompose to the granularity that produces a MEANINGFUL DAG and no finer. Over-decomposition manufactures fake dependencies; under-decomposition hides parallelism.
 - One node per coherent contract/surface (migration, api_contract, ui_component, config, test). For a true one-change request emit a SINGLE node — never invent a DAG.
 - Match node titles and predicted file paths to the repo's real conventions when the summary provides them.
-- Emit a plan-level LayoutSpec whose tier/canvas match the detected granularity (g1->checklist, g2->compact_dag, g3->swimlane_dag, g4->hierarchical_map).
+- Emit a plan-level LayoutSpec. The tier is a PRIOR from request size (g1 small .. g4 large), but CHOOSE the canvas that best fits the work's ACTUAL shape — you are NOT forced to map tier->canvas 1:1:
+    * checklist — a tiny diff-first change only (<=3 nodes); collapses the DAG to a list.
+    * compact_dag — a single feature/flow as a left-to-right dependency graph.
+    * swimlane_dag — work that splits into parallel lanes by module/area (set grouping=by_module).
+    * hierarchical_map — large plans (15+ nodes) that cluster into milestones/super-nodes (set grouping=by_milestone, semantic_zoom=true).
+  Also set direction, emphasis, and parallelism_ui to fit the plan (e.g. dispatch_parallel when several independent lanes exist).
 - coarse_order entries are SOFT ordering hints only ("scaffold before wiring"); the engine may override them.`;
 
 export interface PlannerInput {
@@ -213,12 +219,19 @@ export async function runPlanner(input: PlannerInput): Promise<{ plan: EmitPlan;
   const prior = granularityPrior(input.prompt);
   log.info(`granularity prior: ${prior.tier} (${prior.reason})`);
 
+  // External grounding (mandated-integrations.md §3.3): labelled web:linkup and
+  // kept distinct from repo-symbol grounding. Best-effort — null with no key/on error.
+  const web = await webSearch(input.prompt);
+  const webBlock = web?.answer
+    ? `\n# External grounding (web:linkup — NOT repo-verified; treat as hints only)\n${web.answer}\nSources: ${web.sources.slice(0, 5).map((s) => s.url).join(", ")}\n`
+    : "";
+
   const userPrompt = `# Request
 ${input.prompt}
 
 # Repo summary (conventions, modules, framework surfaces)
 ${input.repoSummary || "(no repo summary available — predict conservatively, mark new symbols in `add`)"}
-
+${webBlock}
 # Granularity hint
 Prior tier from request shape: ${prior.tier} — ${prior.reason}.
 Detect the real tier from request shape + touch-set breadth + your node count. If your node count lands outside the tier band, RE-TIER with a visible tier_reason rather than forcing the band.
@@ -240,27 +253,44 @@ Call emit_plan now.`;
     maxTokens: 12000,
   });
 
-  // Reconcile tier vs node count and keep the LayoutSpec tier consistent.
+  // Reconcile only the TIER LABEL against the real node count (it drives analysis
+  // depth + cost budgets). The CANVAS is the model's call — granularity is a prior,
+  // not a cage (granularity-layouts.md) — subject only to a coherence guard below.
   const reconciled = reconcileTier(data.detected_granularity, data.nodes.length);
   if (reconciled !== data.detected_granularity) {
     log.info(`re-tiering ${data.detected_granularity} -> ${reconciled} (node count ${data.nodes.length})`);
     data.detected_granularity = reconciled;
     data.layout_spec.tier = reconciled;
-    data.layout_spec.canvas = canvasForTier(reconciled);
+  }
+
+  // Keep the model's chosen canvas unless it would render incoherently.
+  const guarded = coherentCanvas(data.layout_spec.canvas, data.nodes.length);
+  if (guarded.canvas !== data.layout_spec.canvas) {
+    log.info(`canvas guard: ${data.layout_spec.canvas} -> ${guarded.canvas} (node count ${data.nodes.length})`);
+    data.layout_spec.canvas = guarded.canvas;
   }
 
   return { plan: data, tokens };
 }
 
-function canvasForTier(tier: GranularityT): LayoutSpec["canvas"] {
-  switch (tier) {
-    case "g1_micro":
-      return "checklist";
-    case "g2_meso":
-      return "compact_dag";
-    case "g3_macro":
-      return "swimlane_dag";
-    case "g4_mega":
-      return "hierarchical_map";
+/**
+ * Coherence guard for the model-chosen canvas. The planner picks the canvas
+ * freely (layout is model-driven); we only correct choices that would render
+ * incoherently against the actual node count — we never force tier->canvas:
+ *   - checklist collapses the DAG, so it's sane only for a handful of nodes;
+ *   - hierarchical_map is for large, clusterable plans, so below the macro band
+ *     it renders every flat node as an oversized super-node.
+ * compact_dag and swimlane_dag are coherent at any reasonable count and pass through.
+ */
+function coherentCanvas(
+  requested: LayoutSpec["canvas"],
+  nodeCount: number,
+): { canvas: LayoutSpec["canvas"] } {
+  if (requested === "checklist" && nodeCount > TIER_BANDS.g1_micro[1]) {
+    return { canvas: "compact_dag" };
   }
+  if (requested === "hierarchical_map" && nodeCount < TIER_BANDS.g3_macro[0]) {
+    return { canvas: "swimlane_dag" };
+  }
+  return { canvas: requested };
 }
