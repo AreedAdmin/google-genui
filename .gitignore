@@ -31,3 +31,6 @@ worktrees/
 *.log
 coverage/
 .DS_Store
+
+# large local media (video/audio) — kept out of git
+media/

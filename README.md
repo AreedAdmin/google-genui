@@ -30,10 +30,9 @@ subtree can be **delegated** to another person or agent.
 
 <br/>
 
-<!-- TODO[hero]: replace with a real screenshot of the plan-graph canvas (the G2 "OAuth" plan — 6 nodes, 2 tinted lanes, inspector open). A short autoplay GIF of Describe→Plan→Inspect is even better. See docs/SCREENSHOTS.md. -->
-<img src="assets/hero-canvas.png" alt="Trellis plan-graph canvas — an interactive dependency DAG of a code change with the grounded node inspector open" width="880" />
+<img src="assets/UI.png" alt="Trellis home — Describe what to build: a prompt box that turns a request into a grounded, runnable dependency graph, with a list of recent plans" width="880" />
 
-<sub><i>The output isn't a chat reply — it's an operable plan graph.</i><!-- TODO: link a hosted demo / recording here --></sub>
+<sub><i>Describe what to build — Trellis turns it into a grounded plan you can run, branch, and delegate.</i></sub>
 
 </div>
 
@@ -64,49 +63,41 @@ The product rests on **four pillars**:
 
 ## 🎬 See it in action
 
-> **Describe → Plan → Inspect → Iterate → Operate → Delegate.**
-> The whole loop lives in the canvas. Below it runs on the flagship storyline — *"Add Sign in with Google + GitHub"* to an existing login page.
+> **Describe → Plan → Inspect → Operate.** The whole loop lives in the canvas. Below it runs on a real example — *"Add run history to Trellis,"* Trellis planning a change to **its own** codebase.
 
-<!--
-  TODO[screenshots]: capture the frames referenced below and drop the PNGs into assets/.
-  docs/SCREENSHOTS.md lists the exact app state, viewport, and source demo Act for each one.
--->
+### 1 · Describe what to build
 
-### 1 · Describe — launch from inside your coding agent
+<img src="assets/input.png" alt="Trellis prompt box filled with a request to add run history, against the connected google-genui repo" width="820" />
 
-<img src="assets/flow-1-describe.png" alt="The /trellis slash command running inside Claude Code, returning a plan summary and a link to the canvas" width="820" />
+You describe the work in plain English against a connected repo — here, *"Add run history to Trellis: persist each run's duration and token cost, expose `GET /v1/runs/:id/summary`, and show a History tab in the node inspector."* No flags, no config; the agents read the repo's **real code**.
 
-You stay in your coding agent: `/trellis add "Sign in with Google and GitHub" to the login page`. Trellis plans it server-side and hands back a compact summary plus a link — it never tries to draw a graph in your terminal.
+### 2 · Plan — it reads your repo and grounds the change
 
-### 2 · Plan — a generative dependency graph
+<img src="assets/loading-screen.png" alt="Trellis generating a plan — cloning and indexing the repo to build a grounded dependency graph, ~10–40s" width="820" />
 
-<img src="assets/flow-2-plan.png" alt="The Trellis canvas showing a compact left-to-right DAG: six nodes across two independent, differently tinted lanes" width="820" />
+Trellis clones & indexes the repo, then a planner proposes the change while a deterministic engine resolves real symbols — typically **10–40s**. Nothing is drawn on the canvas until it's grounded.
 
-The canvas opens on a **compact DAG** — six nodes across **two tinted lanes** that Trellis has proven *independent* (they touch disjoint files), and therefore safe to run in parallel.
+### 3 · The dependency graph
 
-### 3 · Inspect — grounded analysis + per-change widgets
+<img src="assets/dag.png" alt="A compact dependency DAG of five nodes, each labelled by change type: logic, migration, API contract, UI component" width="820" />
 
-<img src="assets/flow-3-inspect.png" alt="Node inspector open on a migration node: a schema-diff widget on top, five grounded sections below, a citation hovering into a real file and symbol" width="820" />
+The canvas opens on a **compact DAG** (this one is granularity **G2**) — five nodes, each **colored by change type** (logic · migration · API contract · UI component). The edges are real dependencies derived from your symbol graph, and independent nodes are free to run in parallel.
 
-Click a node and the inspector opens with a widget tuned to the change type — a **schema-diff** for a migration, an **API-contract** for an endpoint — over five grounded sections. **Every assumption cites a real `file#symbol`** from your repo; hover one and it links straight into the code. Nothing hand-wavy.
+<img src="assets/dag2.png" alt="A second compact DAG — a notifications system — with more nodes that converge on a shared notifications-service node below the row" width="820" />
 
-### 4 · Iterate — correct it, re-plan live
+Different requests produce different graphs. Here a *"notifications system"* request expands to a wider plan whose nodes converge on a shared **notifications service** — a dependency the engine *derived* from the code, not one you drew.
 
-<img src="assets/flow-4-iterate.png" alt="A weak assumption being thumbs-downed in the inspector and greying out as the graph re-plans" width="820" />
+### 4 · Inspect — grounded analysis + per-change widgets
 
-Reject a weak claim and it greys out — feedback that tunes future analysis. Change the request and the graph **re-plans in place**, no full restart.
+<img src="assets/node-analysis.png" alt="Node inspector showing a call-graph widget over five grounded tabs, citing runs.ts#runs with a 0.96 resolution score" width="820" />
 
-### 5 · Operate — dispatch independent branches in parallel
+Click a node and the inspector opens with a widget tuned to the change type — here a **call-graph** view of `runs.ts#runs` — over five grounded tabs: **Changes · Assumptions · Analysis · Benefits · Notable**. Every claim **cites a real `file#symbol`** with a resolution confidence (0.96 here). From the same panel you can **Run**, **Delegate subtree**, or **Add context** to re-plan.
 
-<img src="assets/flow-5-operate.png" alt="Two branches building concurrently with live diffs streaming back, converging on an integration node behind a test gate" width="820" />
+### 5 · Operate — run it, watch the agent live
 
-Ratify the plan and Trellis fans the independent lanes out to coding agents on **isolated git worktrees**. Diffs **stream back live**; an integration node reconverges them behind a **test gate** — no merge conflicts.
+<img src="assets/agentic-worker.png" alt="A node running live: a headless Claude Code agent streaming progress and tool calls while it edits the worktree" width="820" />
 
-### 6 · Delegate — hand a subtree to someone else
-
-<img src="assets/flow-6-delegate.png" alt="A subtree of the plan being delegated to a second user who runs it from their own session" width="820" />
-
-Hand any subtree to another person or agent. They operate just their slice from their own session, and it reconverges into the same gated merge. *"GitHub for plans."*
+Hit **Run** and a headless **Claude Code** agent builds the node on an **isolated git worktree** — reading the generated `CLAUDE.md` guardrails and touching only the predicted files. Its work **streams back live** (progress, tool calls, diffs); independent nodes run concurrently and reconverge behind a **test gate**.
 
 ---
 
@@ -114,10 +105,12 @@ Hand any subtree to another person or agent. They operate just their slice from 
 
 Trellis picks the layout from the **size** of the work — a one-line fix collapses to a diff; a 50-node migration becomes a zoomable map. Same product, four granularities:
 
-| G1 · micro | G2 · meso | G3 · macro | G4 · mega |
-|:--:|:--:|:--:|:--:|
-| <img src="assets/granularity-g1.png" alt="G1 micro layout — a single change collapsed to a diff" width="200" /> | <img src="assets/granularity-g2.png" alt="G2 meso layout — a compact dependency DAG" width="200" /> | <img src="assets/granularity-g3.png" alt="G3 macro layout — a multi-branch plan" width="200" /> | <img src="assets/granularity-g4.png" alt="G4 mega layout — a zoomable migration map" width="200" /> |
-| *tighten a validator* | *add OAuth login* | *extract a billing module* | *migrate an analytics platform* |
+| Granularity | Layout | Example |
+|---|---|---|
+| **G1 · micro** | a single change, collapsed to a diff | *tighten a validator* |
+| **G2 · meso** | a compact dependency DAG *(shown above)* | *add run history* |
+| **G3 · macro** | a multi-branch plan with lanes | *extract a billing module* |
+| **G4 · mega** | a zoomable map | *migrate an analytics platform* |
 
 ---
 
@@ -125,10 +118,10 @@ Trellis picks the layout from the **size** of the work — a one-line fix collap
 
 The node body isn't a wall of text — it's a validated widget chosen for what the change *is*. A few of them:
 
-| | | |
-|:--:|:--:|:--:|
-| <img src="assets/widget-schemadiff.png" alt="Schema-diff widget — before/after table columns" width="240" /> | <img src="assets/widget-apicontract.png" alt="API-contract widget — method, request, response, breaking-change flag" width="240" /> | <img src="assets/widget-callgraph.png" alt="Call-graph impact widget — existing callers a change touches" width="240" /> |
-| **SchemaDiff** · before/after columns | **ApiContract** · method, req/res, breaking flag | **CallGraphImpact** · callers touched |
+- **SchemaDiff** — before/after table columns for a migration
+- **ApiContract** — method, request/response, breaking-change flag for an endpoint
+- **CallGraphImpact** — the existing callers a logic change touches *(seen in the inspector above)*
+- …and more — always rendered from a validated spec, never raw model HTML
 
 ---
 
