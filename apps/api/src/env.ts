@@ -27,6 +27,9 @@ export const env = {
     .map((s) => s.trim())
     .filter(Boolean),
   appUrl: optional("NEXT_PUBLIC_APP_URL", "http://localhost:3000"),
+  // CopilotKit runtime (the plan-iteration copilot) — chat LLM runs in the API.
+  anthropicApiKey: optional("ANTHROPIC_API_KEY", ""),
+  copilotModel: optional("COPILOT_MODEL", "claude-sonnet-4-6"),
   // Lazily required (only when auth actually runs).
   jwtSecret: (): string => required("SUPABASE_JWT_SECRET"),
   mcpTokenSecret: (): string => required("TRELLIS_MCP_TOKEN_SECRET"),

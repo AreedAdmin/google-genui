@@ -9,6 +9,7 @@ import {
   Controls,
   MiniMap,
   useReactFlow,
+  SelectionMode,
   type Node,
   type Edge,
   type NodeMouseHandler,
@@ -110,7 +111,9 @@ function Inner({
       proOptions={{ hideAttribution: true }}
       defaultEdgeOptions={{ type: "planEdge" }}
       className="bg-bg"
+      selectionMode={SelectionMode.Partial}
       selectionOnDrag
+      panOnDrag={[1, 2]}
       panOnScroll
     >
       <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--border)" />

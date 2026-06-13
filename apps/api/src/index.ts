@@ -12,6 +12,7 @@ import { nodeRoutes } from "./routes/nodes.js";
 import { shareRoutes } from "./routes/shares.js";
 import { runRoutes } from "./routes/runs.js";
 import { aguiRoutes } from "./routes/agui.js";
+import { copilotkitRoutes } from "./routes/copilotkit.js";
 import { fileURLToPath } from "node:url";
 
 /**
@@ -53,6 +54,7 @@ export async function buildServer() {
       await shareRoutes(v1);
       await runRoutes(v1);
       await aguiRoutes(v1);
+      await copilotkitRoutes(v1);
     },
     { prefix: "/v1" },
   );

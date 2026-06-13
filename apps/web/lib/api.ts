@@ -224,7 +224,18 @@ export function subscribeRunStream(
       return;
     }
     try {
-      handlers.onEvent(JSON.parse(msg.data) as RunStreamEvent);
+      const ev = JSON.parse(msg.data) as RunStreamEvent;
+      // The worker XADDs `data` as a JSON string and the SSE relay forwards it
+      // verbatim, so `ev.data` arrives as a string — parse it back to an object
+      // so consumers can read `ev.data.text` / `.tool` / `.tokens` / `.state`.
+      if (typeof ev.data === "string") {
+        try {
+          ev.data = JSON.parse(ev.data) as Record<string, unknown>;
+        } catch {
+          ev.data = { text: ev.data };
+        }
+      }
+      handlers.onEvent(ev);
     } catch {
       // tolerate keep-alive comments / partial frames
     }

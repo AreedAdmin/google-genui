@@ -9,11 +9,14 @@ import { useAgentStream } from "@/lib/agui";
 import { GraphCanvas } from "./GraphCanvas";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { SelectionBanner } from "./SelectionBanner";
+import { PlanCopilot } from "./PlanCopilot";
 import { NodeInspector } from "@/components/inspector/NodeInspector";
 import { ShareDialog, AddContextDialog } from "@/components/inspector/ActionDialogs";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Skeleton, EmptyState, Button } from "@/components/ui/primitives";
-import { GitBranch, ArrowLeft, AlertCircle } from "lucide-react";
+import { GitBranch, ArrowLeft, AlertCircle, GitFork } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { PruneShareDialog } from "./PruneShareDialog";
 
 /**
  * The canvas page (/p/[id]). Fetches the PlanGraph, renders the layout-adaptive
@@ -39,6 +42,35 @@ export function CanvasPage({ planId }: { planId: string }) {
   const [contextOpen, setContextOpen] = React.useState(false);
   const streamCleanups = React.useRef<Map<string, () => void>>(new Map());
 
+  // Delegation: a ?subtree=<ids> link scopes the canvas to just those nodes.
+  const searchParams = useSearchParams();
+  const subtreeParam = searchParams.get("subtree");
+  const subtreeIds = React.useMemo(
+    () => (subtreeParam ? subtreeParam.split(",").map((s) => s.trim()).filter(Boolean) : null),
+    [subtreeParam],
+  );
+  const viewGraph = React.useMemo(() => {
+    if (!graph || !subtreeIds || subtreeIds.length === 0) return graph;
+    const ids = new Set(subtreeIds);
+    const nodes = graph.nodes.filter((n) => ids.has(n.id));
+    const edges = graph.edges.filter((e) => ids.has(e.from_node) && ids.has(e.to_node));
+    const branchIds = new Set(nodes.map((n) => n.branch_id).filter(Boolean));
+    const branches = graph.branches.filter((b) => branchIds.has(b.id));
+    return { ...graph, nodes, edges, branches };
+  }, [graph, subtreeIds]);
+
+  // Prune → generate a shareable subtree link.
+  const [prune, setPrune] = React.useState<{ link: string; count: number } | null>(null);
+  const handlePrune = React.useCallback(
+    (ids: string[]) => {
+      if (!ids.length) return;
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      setPrune({ link: `${origin}/p/${planId}?subtree=${ids.join(",")}`, count: ids.length });
+      clearSelection();
+    },
+    [planId, clearSelection],
+  );
+
   React.useEffect(() => {
     reset();
     return () => {
@@ -54,20 +86,79 @@ export function CanvasPage({ planId }: { planId: string }) {
       if (!nodeId) return;
       setRunProgress(nodeId, { runId: run.run_id, status: "running", progress: 0.05 });
       streamCleanups.current.get(nodeId)?.();
+
+      // The runner emits no explicit progress %, so advance a heuristic bar as
+      // events arrive; the terminal `status` event pins it to 100%.
+      let ticks = 1;
+      let tokens = 0;
+      let final: "succeeded" | "failed" | null = null;
+      const isDone = (s?: string) => !!s && /built|merged|success|succeeded|done|complete/i.test(s);
+      const isFail = (s?: string) => !!s && /fail|error|blocked|abort/i.test(s);
+      const bump = () => {
+        ticks += 1;
+        setRunProgress(nodeId, {
+          runId: run.run_id,
+          status: "running",
+          progress: Math.min(0.92, 0.05 + ticks * 0.035),
+          tokens,
+        });
+      };
+
       const cleanup = subscribeRunStream(run.run_id, {
         onEvent: (e) => {
-          if (e.type === "status" && typeof e.data?.progress === "number") {
-            setRunProgress(nodeId, { runId: run.run_id, status: "running", progress: e.data.progress as number, tokens: (e.data.tokens as number) ?? 0 });
-          } else if (e.type === "text" && typeof e.data?.text === "string") {
-            appendRunLog(nodeId, e.data.text as string);
-          } else if (e.type === "tool_call" && typeof e.data?.name === "string") {
-            appendRunLog(nodeId, `→ ${e.data.name as string}`);
-          } else if (e.type === "file_edit" && typeof e.data?.path === "string") {
-            appendRunLog(nodeId, `± ${e.data.path as string}`);
+          const d = (e.data ?? {}) as Record<string, unknown>;
+          if (typeof d.tokens === "number") tokens = d.tokens;
+
+          switch (e.type) {
+            case "text": {
+              const t = ((d.text as string) ?? (d.stderr as string) ?? "").trim();
+              if (t) {
+                appendRunLog(nodeId, t);
+                bump();
+              }
+              break;
+            }
+            case "tool_call":
+              appendRunLog(nodeId, `→ ${(d.tool as string) ?? "tool"}`);
+              bump();
+              break;
+            case "file_edit":
+              appendRunLog(nodeId, `± ${(d.path as string) ?? "file"}`);
+              bump();
+              break;
+            case "token_usage":
+              bump();
+              break;
+            case "error":
+              appendRunLog(nodeId, `⚠ ${(d.message as string) ?? "error"}`);
+              final = "failed";
+              setRunProgress(nodeId, { runId: run.run_id, status: "failed", tokens });
+              break;
+            case "status": {
+              const state = (d.state as string) ?? (d.result as string);
+              if (isDone(state)) {
+                final = "succeeded";
+                appendRunLog(nodeId, `· ${state}`);
+                setRunProgress(nodeId, { runId: run.run_id, status: "succeeded", progress: 1, tokens });
+              } else if (isFail(state)) {
+                final = "failed";
+                appendRunLog(nodeId, `· ${state}`);
+                setRunProgress(nodeId, { runId: run.run_id, status: "failed", progress: 1, tokens });
+              } else if (state && !/running|starting|queued/i.test(state)) {
+                appendRunLog(nodeId, `· ${state}`);
+                bump();
+              }
+              break;
+            }
           }
         },
-        onDone: () => setRunProgress(nodeId, { runId: run.run_id, status: "succeeded", progress: 1 }),
-        onError: () => setRunProgress(nodeId, { runId: run.run_id, status: "failed", progress: 1 }),
+        // The relay tails Redis with XREAD BLOCK (never closes on completion), so a
+        // disconnect is only terminal-meaningful if we already saw a final status.
+        onDone: () =>
+          setRunProgress(nodeId, { runId: run.run_id, status: final ?? "succeeded", progress: 1, tokens }),
+        onError: () => {
+          if (final) setRunProgress(nodeId, { runId: run.run_id, status: final, progress: 1, tokens });
+        },
       });
       streamCleanups.current.set(nodeId, cleanup);
     },
@@ -87,22 +178,25 @@ export function CanvasPage({ planId }: { planId: string }) {
   );
 
   const runAll = React.useCallback(() => {
-    if (!graph) return;
-    const ready = graph.nodes.filter((n) => n.status === "ready").map((n) => n.id);
-    runNodes(ready.length ? ready : graph.nodes.map((n) => n.id));
-  }, [graph, runNodes]);
+    if (!viewGraph) return;
+    const ready = viewGraph.nodes.filter((n) => n.status === "ready").map((n) => n.id);
+    runNodes(ready.length ? ready : viewGraph.nodes.map((n) => n.id));
+  }, [viewGraph, runNodes]);
 
   const dispatchParallel = React.useCallback(() => {
-    if (!graph) return;
+    if (!viewGraph) return;
     // proven-independent branches → all their nodes
-    const indepBranches = graph.branches.filter((b) => b.independent_of.length > 0);
+    const indepBranches = viewGraph.branches.filter((b) => b.independent_of.length > 0);
     const ids = indepBranches.flatMap((b) => b.node_ids);
-    runNodes(ids.length ? ids : graph.nodes.filter((n) => n.status === "ready").map((n) => n.id));
-  }, [graph, runNodes]);
+    runNodes(ids.length ? ids : viewGraph.nodes.filter((n) => n.status === "ready").map((n) => n.id));
+  }, [viewGraph, runNodes]);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-bg">
       <TopBar />
+      {/* Plan-iteration copilot (mandate's sanctioned chat use). Rendered
+          unconditionally so its CopilotKit hooks stay stable across load states. */}
+      <PlanCopilot planId={planId} graph={graph} selectedNodeId={selectedNodeId} />
       {isLoading ? (
         <div className="flex flex-1 flex-col gap-3 p-6">
           <Skeleton className="h-10 w-full" />
@@ -129,7 +223,7 @@ export function CanvasPage({ planId }: { planId: string }) {
             title={graph.plan.title}
             granularity={graph.plan.granularity}
             layoutSpec={graph.plan.layout_spec}
-            nodeCount={graph.nodes.length}
+            nodeCount={viewGraph!.nodes.length}
             running={runMutation.isPending}
             onRunAll={runAll}
             onDispatchParallel={dispatchParallel}
@@ -137,14 +231,27 @@ export function CanvasPage({ planId }: { planId: string }) {
             onShare={() => setShareOpen(true)}
           />
 
+          {subtreeIds && (
+            <div className="flex items-center gap-2 border-b border-border bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface))] px-4 py-1.5 text-xs">
+              <GitFork size={13} className="text-accent" aria-hidden />
+              <span className="font-medium text-fg">Delegated subtree</span>
+              <span className="truncate text-fg-muted">
+                · {viewGraph!.nodes.length} task{viewGraph!.nodes.length === 1 ? "" : "s"} from “{graph.plan.title}”. Run these and report back.
+              </span>
+              <Link href={`/p/${planId}`} className="ml-auto whitespace-nowrap text-accent hover:underline">
+                View full plan →
+              </Link>
+            </div>
+          )}
           <div className="relative flex-1">
-            <GraphCanvas graph={graph} onOpenNode={selectNode} onRunNode={(id) => runNodes([id])} />
-            <SelectionBanner graph={graph} selection={multiSelection} running={runMutation.isPending} onDispatch={runNodes} onClear={clearSelection} />
+            <GraphCanvas graph={viewGraph!} onOpenNode={selectNode} onRunNode={(id) => runNodes([id])} />
+            <SelectionBanner graph={viewGraph!} selection={multiSelection} running={runMutation.isPending} onDispatch={runNodes} onPrune={handlePrune} onClear={clearSelection} />
           </div>
 
-          <NodeInspector graph={graph} nodeId={selectedNodeId} onClose={() => selectNode(null)} onRun={(id) => runNodes([id])} />
+          <NodeInspector graph={viewGraph!} nodeId={selectedNodeId} onClose={() => selectNode(null)} onRun={(id) => runNodes([id])} />
           <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} planId={planId} />
           <AddContextDialog open={contextOpen} onClose={() => setContextOpen(false)} planId={planId} />
+          <PruneShareDialog open={!!prune} onClose={() => setPrune(null)} link={prune?.link ?? ""} count={prune?.count ?? 0} />
         </>
       )}
     </div>

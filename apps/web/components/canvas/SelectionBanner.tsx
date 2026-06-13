@@ -4,7 +4,7 @@ import * as React from "react";
 import type { PlanGraph } from "@trellis/shared";
 import { analyzeIndependence } from "@/lib/utils";
 import { Button } from "@/components/ui/primitives";
-import { Zap, AlertTriangle, X } from "lucide-react";
+import { Zap, AlertTriangle, X, Scissors } from "lucide-react";
 import { shortRef } from "@/lib/utils";
 
 /**
@@ -17,12 +17,14 @@ export function SelectionBanner({
   graph,
   selection,
   onDispatch,
+  onPrune,
   onClear,
   running,
 }: {
   graph: PlanGraph;
   selection: string[];
   onDispatch: (ids: string[]) => void;
+  onPrune?: (ids: string[]) => void;
   onClear: () => void;
   running: boolean;
 }) {
@@ -61,7 +63,12 @@ export function SelectionBanner({
         </ul>
       )}
 
-      <div className="mt-2.5 flex justify-end">
+      <div className="mt-2.5 flex justify-end gap-2">
+        {onPrune && (
+          <Button variant="secondary" size="sm" icon={<Scissors size={13} />} onClick={() => onPrune(selection)}>
+            Prune &amp; share
+          </Button>
+        )}
         <Button
           variant={result.parallelSafe ? "primary" : "secondary"}
           size="sm"

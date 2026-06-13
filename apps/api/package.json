@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@ag-ui/core": "0.0.57",
+    "@ai-sdk/anthropic": "^3.0.84",
+    "@ai-sdk/openai": "^3.0.71",
     "@anthropic-ai/sdk": "^0.70.0",
     "@copilotkit/runtime": "1.60.1",
     "@fastify/cors": "^10.0.1",
@@ -23,8 +25,10 @@
     "bullmq": "^5.25.6",
     "dotenv": "^16.4.5",
     "fastify": "^5.1.0",
+    "groq-sdk": "^1.2.1",
     "ioredis": "^5.4.1",
     "jose": "^5.9.6",
+    "openai": "^6.42.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
