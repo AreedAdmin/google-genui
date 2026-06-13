@@ -1,0 +1,16 @@
+# Local infra for Trellis dev.
+# Supabase runs separately via the Supabase CLI:  `supabase start`
+# This brings up Redis (queues / locks / live run streams).
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: trellis-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  redis-data:
