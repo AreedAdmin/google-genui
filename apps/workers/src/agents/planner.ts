@@ -7,7 +7,7 @@ import {
 } from "@trellis/shared";
 import { toolForcedJSON, type JsonSchema } from "../anthropic.js";
 import { env } from "../env.js";
-import { webSearch } from "./linkup.js";
+import { webSearchTool } from "./linkup.js";
 import { logger } from "../log.js";
 
 const log = logger("planner");
@@ -196,7 +196,7 @@ export function reconcileTier(detected: GranularityT, nodeCount: number): Granul
 const SYSTEM = `You are Trellis's Planner agent. You decompose a coding request into a dependency-graph plan.
 
 Hard rules (planner-agent.md):
-- Output ONLY via the emit_plan tool. No prose outside tool fields.
+- Your FINAL answer MUST be the emit_plan tool call (no prose). You MAY first call the web_search tool for EXTERNAL knowledge — library deprecations, current APIs, known pitfalls — when it would improve the plan; skip it when the repo summary suffices. web_search results are web:linkup — hints only, NOT repo-verified.
 - Predictions are COARSE: {kind, name, file} triples under add/modify/delete. Do NOT enumerate callers, do NOT claim independence, do NOT derive edges — a deterministic engine resolves all of that.
 - Decompose to the granularity that produces a MEANINGFUL DAG and no finer. Over-decomposition manufactures fake dependencies; under-decomposition hides parallelism.
 - One node per coherent contract/surface (migration, api_contract, ui_component, config, test). For a true one-change request emit a SINGLE node — never invent a DAG.
@@ -219,19 +219,12 @@ export async function runPlanner(input: PlannerInput): Promise<{ plan: EmitPlan;
   const prior = granularityPrior(input.prompt);
   log.info(`granularity prior: ${prior.tier} (${prior.reason})`);
 
-  // External grounding (mandated-integrations.md §3.3): labelled web:linkup and
-  // kept distinct from repo-symbol grounding. Best-effort — null with no key/on error.
-  const web = await webSearch(input.prompt);
-  const webBlock = web?.answer
-    ? `\n# External grounding (web:linkup — NOT repo-verified; treat as hints only)\n${web.answer}\nSources: ${web.sources.slice(0, 5).map((s) => s.url).join(", ")}\n`
-    : "";
-
   const userPrompt = `# Request
 ${input.prompt}
 
 # Repo summary (conventions, modules, framework surfaces)
 ${input.repoSummary || "(no repo summary available — predict conservatively, mark new symbols in `add`)"}
-${webBlock}
+
 # Granularity hint
 Prior tier from request shape: ${prior.tier} — ${prior.reason}.
 Detect the real tier from request shape + touch-set breadth + your node count. If your node count lands outside the tier band, RE-TIER with a visible tier_reason rather than forcing the band.
@@ -241,7 +234,7 @@ Base commit: ${input.baseCommit || "(unknown)"}
 
 Call emit_plan now.`;
 
-  const { data, tokens } = await toolForcedJSON({
+  const { data, tokens, toolCalls } = await toolForcedJSON({
     model: env.plannerModel,
     system: SYSTEM,
     prompt: userPrompt,
@@ -251,7 +244,9 @@ Call emit_plan now.`;
     inputSchema: EMIT_PLAN_SCHEMA,
     validator: EmitPlanZ,
     maxTokens: 12000,
+    agentTools: [webSearchTool],
   });
+  log.info(`planner web_search calls: ${toolCalls}`);
 
   // Reconcile only the TIER LABEL against the real node count (it drives analysis
   // depth + cost budgets). The CANVAS is the model's call — granularity is a prior,
