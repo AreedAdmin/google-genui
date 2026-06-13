@@ -3,6 +3,7 @@ import { z } from "zod";
 import { authPreHandler } from "../auth.js";
 import { ApiErrors } from "../errors.js";
 import { createFeedback } from "../services/feedback.js";
+import { getNodeDiff } from "../services/runs.js";
 
 const FeedbackBody = z.object({
   vote: z.enum(["up", "down"]),
@@ -25,6 +26,16 @@ export async function nodeRoutes(app: FastifyInstance): Promise<void> {
         parsed.data,
       );
       return reply.code(201).send(feedback);
+    },
+  );
+
+  // GET /nodes/:id/diff — the latest build run's captured diff (Changes tab).
+  app.get<{ Params: { id: string } }>(
+    "/nodes/:id/diff",
+    { preHandler: authPreHandler },
+    async (request, reply) => {
+      const diff = await getNodeDiff(request.identity, request.params.id);
+      return reply.code(200).send(diff);
     },
   );
 }

@@ -68,6 +68,7 @@ Full definitions and per-tier layout specs live in `00-overview/scope.md` and `0
 
 - **Product name:** Trellis. **Unit of work entity:** a *Plan*. **Atom:** a *Node* (one coherent change). **Link:** an *Edge* (a dependency). **Lane:** a *Branch* (a set of nodes runnable in isolation).
 - **Stack:** Next.js/TypeScript app · Node orchestration workers · **Python** dependency-analysis service · **Supabase** (Postgres + Auth + Realtime + Storage) · **Redis** (queue + cache + locks + pub/sub) · **Claude** (Opus 4.8 for planning/analysis, Sonnet 4.6 for high-volume build). Rationale in `01-architecture/tech-stack.md`.
+- **Mandated agent/UI integrations:** **CopilotKit** (headless / `useCoAgent`, **canvas-primary — not chat-first**) · **AG-UI** (agent↔user transport, emitted from our **bespoke** agent loop — no agent framework) · **A2A** (agent↔agent: pluggable runner + subtree delegation; does **not** replace BullMQ) · **Linkup** (external web-grounding tool, labelled distinctly from repo-symbol grounding). Additive layers — **no pillar changes**. See [`01-architecture/mandated-integrations.md`](./01-architecture/mandated-integrations.md).
 - **Granularity tiers:** G1 Micro / G2 Meso / G3 Macro / G4 Mega (above).
 - **Change types** (drive widgets): `migration`, `api_contract`, `ui_component`, `logic`, `refactor`, `bugfix`, `config`, `infra`, `test`, `docs`.
 - **The DAG is a *ratified hypothesis*, not a guarantee** — independence claims are shown with evidence and are user-correctable.

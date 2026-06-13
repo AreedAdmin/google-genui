@@ -1,0 +1,286 @@
+{
+  "plan": {
+    "id": "52cf878f-b081-4263-8d37-3a671fbde30e",
+    "project_id": "00000000-0000-0000-0000-000000000100",
+    "title": "Create a single release-readiness report for the billing service that summarizes key health metrics (error rate, p99 lat",
+    "prompt": "Create a single release-readiness report for the billing service that summarizes key health metrics (error rate, p99 latency, open bug count), a table of blocking issues with severity, and a go-live timeline with milestones. It is one consolidated status artifact, not code changes.",
+    "granularity": "g2_meso",
+    "status": "ready",
+    "base_commit": "b07eac099753833b29d06c614149904445739776",
+    "current_revision": 1,
+    "layout_spec": {
+      "tier": "g1_micro",
+      "canvas": "checklist",
+      "emphasis": [
+        "summary"
+      ],
+      "grouping": null,
+      "direction": "TB",
+      "delegation_ui": "per_branch",
+      "semantic_zoom": false,
+      "parallelism_ui": "hidden",
+      "default_inspector_tab": "changes"
+    },
+    "created_by": "00000000-0000-0000-0000-000000000001",
+    "created_at": "2026-06-13T13:41:40.179171+00:00",
+    "updated_at": "2026-06-13T13:42:01.924+00:00"
+  },
+  "nodes": [
+    {
+      "id": "f957b9bf-4ab5-409c-9acd-301e18d03164",
+      "plan_id": "52cf878f-b081-4263-8d37-3a671fbde30e",
+      "revision": 1,
+      "title": "Billing service release-readiness report",
+      "change_type": "docs",
+      "granularity": "g1_micro",
+      "status": "pending",
+      "summary": "Single consolidated status artifact (not code). Includes: (1) Key Health Metrics section \u2014 error rate, p99 latency, open bug count with monitoring notes; (2) Blocking Issues table \u2014 issue id/description, severity (SEV1-SEV5), impact summary, actions; (3) Go-Live Timeline with milestones (requirements, design/config, data migration, testing/training, pre-go-live sign-off, go-live, post-go-live support); plus a closing summary. Web hints are unverified and should be treated as placeholder structure to be filled with real metrics.",
+      "touch_set": {
+        "resolved": {
+          "files": [
+            "docs/billing/release-readiness.md"
+          ],
+          "symbols": [
+            "docs/billing/release-readiness.md#Billing Service Release Readiness Report"
+          ],
+          "config_keys": [],
+          "schema_keys": [],
+          "signatures_changed": []
+        },
+        "predicted": {
+          "add": [
+            {
+              "file": "docs/billing/release-readiness.md",
+              "kind": "doc",
+              "name": "Billing Service Release Readiness Report"
+            }
+          ],
+          "delete": [],
+          "modify": []
+        },
+        "resolution_confidence": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "branch_id": "0dc32308-108e-4c26-88d5-2b9674c6bcdc",
+      "parent_node_id": null,
+      "worktree_ref": null,
+      "diff_artifact_path": null,
+      "confidence": 0,
+      "created_at": "2026-06-13T13:42:01.919386+00:00",
+      "updated_at": "2026-06-13T13:42:01.919386+00:00"
+    }
+  ],
+  "edges": [],
+  "branches": [
+    {
+      "id": "0dc32308-108e-4c26-88d5-2b9674c6bcdc",
+      "plan_id": "52cf878f-b081-4263-8d37-3a671fbde30e",
+      "label": "Billing service release-readiness report",
+      "node_ids": [
+        "f957b9bf-4ab5-409c-9acd-301e18d03164"
+      ],
+      "status": "idle",
+      "assignee_user_id": null,
+      "worktree_path": null,
+      "independent_of": [],
+      "created_at": "2026-06-13T13:42:01.800576+00:00"
+    }
+  ],
+  "annotations": [
+    {
+      "node_id": "f957b9bf-4ab5-409c-9acd-301e18d03164",
+      "revision": 1,
+      "assumptions": [
+        {
+          "text": "This node is a standalone documentation artifact with no executable code; the touch-set contains exactly one Markdown file and no signatures, schema, or config keys.",
+          "confidence": 0.9,
+          "grounded_refs": [
+            "docs/billing/release-readiness.md",
+            "docs/billing/release-readiness.md#Billing Service Release Readiness Report"
+          ]
+        },
+        {
+          "text": "The health metrics, blocking issues, and timeline values are placeholder structure derived from unverified web hints and must be replaced with real telemetry before the report is authoritative.",
+          "confidence": 0.85,
+          "grounded_refs": [
+            "docs/billing/release-readiness.md#Billing Service Release Readiness Report"
+          ]
+        },
+        {
+          "text": "No code consumers reference this document (empty call-graph impact), so the change cannot break a build or runtime path.",
+          "confidence": 0.8,
+          "grounded_refs": [
+            "docs/billing/release-readiness.md"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "kind": "failure_mode",
+          "text": "Placeholder metrics (error rate, p99 latency, open bug count) may be mistaken for verified data and used to justify a go-live decision, leading to an unsafe release.",
+          "severity": "high",
+          "confidence": 0.7,
+          "grounded_refs": [
+            "docs/billing/release-readiness.md#Billing Service Release Readiness Report"
+          ]
+        },
+        {
+          "kind": "edge_case",
+          "text": "resolution_confidence is 0 and web hints are unverified; the document may be incomplete or structurally diverge from the team's real readiness criteria.",
+          "severity": "medium",
+          "confidence": 0.6,
+          "grounded_refs": [
+            "docs/billing/release-readiness.md"
+          ]
+        },
+        {
+          "kind": "failure_mode",
+          "text": "As a static artifact, the Key Health Metrics and Blocking Issues sections go stale immediately after authoring with no automated refresh path.",
+          "severity": "low",
+          "confidence": 0.55,
+          "grounded_refs": [
+            "docs/billing/release-readiness.md#Billing Service Release Readiness Report"
+          ]
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Consolidates error rate, latency, open bugs, blocking issues, and the go-live timeline into a single reviewable artifact for release sign-off.",
+          "grounded_refs": [
+            "docs/billing/release-readiness.md#Billing Service Release Readiness Report"
+          ]
+        },
+        {
+          "text": "Provides an explicit SEV1-SEV5 blocking-issues table that forces severity and action tracking before go-live.",
+          "grounded_refs": [
+            "docs/billing/release-readiness.md#Billing Service Release Readiness Report"
+          ]
+        },
+        {
+          "text": "Docs-only change with empty call-graph impact, so it carries no runtime or build risk to the billing service.",
+          "grounded_refs": [
+            "docs/billing/release-readiness.md"
+          ]
+        }
+      ],
+      "notable_symbols": [
+        {
+          "file": "docs/billing/release-readiness.md",
+          "role": "provider",
+          "symbol": "Billing Service Release Readiness Report",
+          "why_notable": "The sole top-level section in the touch-set; defines the structure (health metrics, blocking issues table, go-live timeline) reviewers must fill with real data before release."
+        }
+      ],
+      "widget_specs": [
+        {
+          "props": {
+            "title": "Billing Service Release Readiness Report",
+            "markdown": "# Billing Service Release Readiness\n\n> **Placeholder structure** \u2014 metrics below are unverified web hints; replace with real telemetry before sign-off.\n\n## Key Health Metrics\n- **Error rate:** `<fill>` \u2014 from monitoring dashboard\n- **p99 latency:** `<fill> ms` \u2014 from APM\n- **Open bug count:** `<fill>` \u2014 from issue tracker\n\n## Blocking Issues\nSee the **SEV1\u2013SEV5** table for id, description, impact, and actions.\n\n## Go-Live Timeline\nMilestones from requirements through **post-go-live support** with sign-off gates."
+          },
+          "widget": "markdown",
+          "version": 1,
+          "grounding": [
+            "docs/billing/release-readiness.md#Billing Service Release Readiness Report"
+          ],
+          "fallback_text": "Billing release-readiness report: health metrics, blocking issues, and go-live timeline (placeholder values pending real data)."
+        },
+        {
+          "props": {
+            "title": "Readiness Snapshot & Timeline",
+            "blocks": [
+              {
+                "body": "Values are placeholder structure from unverified web hints \u2014 fill with real metrics before go-live sign-off.",
+                "kind": "text",
+                "emphasis": "warn"
+              },
+              {
+                "kind": "stat",
+                "tone": "neutral",
+                "label": "Error rate",
+                "value": "<fill>"
+              },
+              {
+                "kind": "stat",
+                "tone": "neutral",
+                "label": "p99 latency",
+                "value": "<fill> ms"
+              },
+              {
+                "kind": "stat",
+                "tone": "neutral",
+                "label": "Open bugs",
+                "value": "<fill>"
+              },
+              {
+                "kind": "table",
+                "rows": [
+                  [
+                    "<id>",
+                    "<description>",
+                    "SEV?",
+                    "<impact summary>",
+                    "<action>"
+                  ]
+                ],
+                "caption": "Blocking Issues (SEV1\u2013SEV5)",
+                "columns": [
+                  "Issue ID",
+                  "Description",
+                  "Severity",
+                  "Impact",
+                  "Action"
+                ]
+              },
+              {
+                "kind": "timeline",
+                "steps": [
+                  {
+                    "label": "Requirements",
+                    "state": "todo"
+                  },
+                  {
+                    "label": "Design / Config",
+                    "state": "todo"
+                  },
+                  {
+                    "label": "Data migration",
+                    "state": "todo"
+                  },
+                  {
+                    "label": "Testing / Training",
+                    "state": "todo"
+                  },
+                  {
+                    "label": "Pre-go-live sign-off",
+                    "state": "todo"
+                  },
+                  {
+                    "label": "Go-live",
+                    "state": "todo"
+                  },
+                  {
+                    "label": "Post-go-live support",
+                    "state": "todo"
+                  }
+                ]
+              }
+            ]
+          },
+          "widget": "composed",
+          "version": 1,
+          "grounding": [
+            "docs/billing/release-readiness.md#Billing Service Release Readiness Report"
+          ],
+          "fallback_text": "Snapshot of health metrics, a SEV1-SEV5 blocking-issues table, and a go-live milestone timeline; all values are placeholders pending real data."
+        }
+      ],
+      "model": "claude-opus-4-8",
+      "tokens": 4684,
+      "cost": 0,
+      "generated_at": "2026-06-13T13:42:22.953+00:00"
+    }
+  ]
+}

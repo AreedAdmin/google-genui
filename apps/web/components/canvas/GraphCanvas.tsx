@@ -23,7 +23,8 @@ import { useCanvasStore } from "@/lib/store";
 import { branchTint } from "@/lib/design";
 import { indexPlan } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/primitives";
-import { Boxes } from "lucide-react";
+import { PlanGenerating } from "./PlanGenerating";
+import { Boxes, AlertTriangle } from "lucide-react";
 
 const nodeTypes = { planNode: PlanNodeView, superNode: SuperNodeView };
 const edgeTypes = { planEdge: PlanEdgeView };
@@ -156,9 +157,9 @@ function SwimlaneBands({ lanes, width, graph }: { lanes: LaneBand[]; width: numb
                 className="absolute inset-0 rounded-md"
                 style={{ background: i % 2 === 0 ? "color-mix(in srgb, var(--surface-2) 40%, transparent)" : "transparent", borderLeft: `3px solid ${color}` }}
               />
-              <div className="absolute left-2 top-2 flex items-center gap-1.5 rounded bg-surface px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color }}>
-                <span className="h-2 w-2 rounded-full" style={{ background: color }} />
-                {lane.label}
+              <div className="absolute left-2 top-2 flex max-w-[220px] items-start gap-1.5 rounded bg-surface px-2 py-0.5 text-[11px] font-semibold uppercase leading-tight tracking-wide" style={{ color }}>
+                <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
+                <span className="line-clamp-2 whitespace-normal break-words">{lane.label}</span>
               </div>
             </div>
           );
@@ -174,6 +175,27 @@ export function GraphCanvas(props: {
   onRunNode: (id: string) => void;
 }) {
   if (props.graph.nodes.length === 0) {
+    const status = props.graph.plan?.status;
+    // Still being built by the worker → show the generating animation, NOT the
+    // terminal "no changes" state (which only applies once the plan is ready).
+    if (status === "planning" || status === "draft") {
+      return (
+        <div className="flex h-full items-center justify-center p-8">
+          <PlanGenerating title={props.graph.plan?.title} />
+        </div>
+      );
+    }
+    if (status === "failed") {
+      return (
+        <div className="flex h-full items-center justify-center p-8">
+          <EmptyState
+            icon={<AlertTriangle size={24} />}
+            title="Planning failed"
+            hint="The planner couldn't build this plan. Check the worker logs, or add context and re-plan."
+          />
+        </div>
+      );
+    }
     return (
       <div className="flex h-full items-center justify-center p-8">
         <EmptyState icon={<Boxes size={24} />} title="No changes needed" hint="The planner found nothing to do for this prompt — here's why it's already satisfied." />

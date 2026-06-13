@@ -8,6 +8,7 @@ import { analysisService } from "../analysis.js";
 import { runPlanner } from "../agents/planner.js";
 import { resolveNode, deriveDependencies, coarseOrderEdges, type ResolvedNode } from "../engine/dependency.js";
 import { buildRepoSummary } from "../repo-summary.js";
+import { GuiStream } from "../gui-stream.js";
 import { logger } from "../log.js";
 
 const log = logger("plan-build");
@@ -78,6 +79,10 @@ async function handlePlanBuild(job: Job<PlanBuildData>): Promise<void> {
     agent: "planner",
     started_at: new Date().toISOString(),
   });
+
+  // AG-UI: structured events for this plan-build run drive the canvas live.
+  const gui = new GuiStream(plan_id);
+  await gui.runStarted(runId);
 
   try {
     // 1a. Ensure repo (clone or sample fallback).
@@ -195,6 +200,16 @@ async function handlePlanBuild(job: Job<PlanBuildData>): Promise<void> {
       degraded_repo: repo.isSample,
     });
 
+    // AG-UI: snapshot the freshly-built plan graph to the canvas (STATE_SNAPSHOT).
+    await gui.stateSnapshot({
+      plan: { ...plan, status: "ready", layout_spec: emitted.layout_spec },
+      nodes: nodeRows,
+      edges: edgeRows,
+      branches: branchRows,
+      annotations: [],
+    });
+    await gui.runFinished(runId);
+
     // Enqueue one analysis job per node.
     const analysisQueue = getQueue(QUEUES.analysis);
     for (const row of nodeRows) {
@@ -209,7 +224,10 @@ async function handlePlanBuild(job: Job<PlanBuildData>): Promise<void> {
       .update({ status: "failed", finished_at: new Date().toISOString(), error: (err as Error).message })
       .eq("id", runId);
     await recordEvent(plan_id, "plan.failed", { error: (err as Error).message });
+    await gui.runError((err as Error).message);
     // Do not rethrow: marking failed + event is the durable outcome; let the job
     // complete so BullMQ doesn't endlessly retry an LLM/schema failure.
+  } finally {
+    await gui.close();
   }
 }

@@ -9,6 +9,11 @@ import { ApiContract, ApiContractProps } from "./ApiContract";
 import { ComponentPreview, ComponentPreviewProps } from "./ComponentPreview";
 import { CallGraphImpact, CallGraphImpactProps } from "./CallGraphImpact";
 import { KeyDiff, KeyDiffProps } from "./KeyDiff";
+import { TestLinkage, TestLinkageProps } from "./TestLinkage";
+import { ResourceDiagram, ResourceDiagramProps } from "./ResourceDiagram";
+import { Markdown, MarkdownProps } from "./Markdown";
+import { Checklist, ChecklistProps } from "./Checklist";
+import { Composed, ComposedProps } from "./Composed";
 
 /**
  * The TRUSTED WidgetSpec registry (widget-generation.md §3). The closed set of
@@ -75,6 +80,41 @@ export const REGISTRY: Partial<Record<WidgetKind, RegistryEntry>> = {
     propsSchema: KeyDiffProps,
     Component: KeyDiff as WidgetComponent,
     maxPropsBytes: 32 * 1024,
+  },
+  test_linkage: {
+    key: "test_linkage",
+    version: 1,
+    propsSchema: TestLinkageProps,
+    Component: TestLinkage as WidgetComponent,
+    maxPropsBytes: 32 * 1024,
+  },
+  resource_diagram: {
+    key: "resource_diagram",
+    version: 1,
+    propsSchema: ResourceDiagramProps,
+    Component: ResourceDiagram as WidgetComponent,
+    maxPropsBytes: 64 * 1024,
+  },
+  markdown: {
+    key: "markdown",
+    version: 1,
+    propsSchema: MarkdownProps,
+    Component: Markdown as WidgetComponent,
+    maxPropsBytes: 32 * 1024,
+  },
+  checklist: {
+    key: "checklist",
+    version: 1,
+    propsSchema: ChecklistProps,
+    Component: Checklist as WidgetComponent,
+    maxPropsBytes: 32 * 1024,
+  },
+  composed: {
+    key: "composed",
+    version: 1,
+    propsSchema: ComposedProps,
+    Component: Composed as WidgetComponent,
+    maxPropsBytes: 256 * 1024,
   },
 };
 

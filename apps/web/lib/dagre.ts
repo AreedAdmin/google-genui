@@ -22,7 +22,7 @@ export interface DagreOptions {
 }
 
 export const NODE_W = 248;
-export const NODE_H = 96;
+export const NODE_H = 130;
 
 export function layoutWithDagre(
   nodes: Node[],
@@ -33,8 +33,8 @@ export function layoutWithDagre(
     direction = "LR",
     nodeWidth = NODE_W,
     nodeHeight = NODE_H,
-    rankSep = 96,
-    nodeSep = 40,
+    rankSep = 150,
+    nodeSep = 64,
     offsetX = 0,
     offsetY = 0,
   } = opts;

@@ -111,3 +111,51 @@ export async function runBranch(
   }
   return created;
 }
+
+export interface NodeDiffResult {
+  run_id: string;
+  status: string;
+  finished_at: string | null;
+  diff: string;
+  files_touched: string[];
+  drift: string[];
+}
+
+/**
+ * The latest node_build run's captured `git diff` for a node (org-scoped).
+ * Returns null if the node has never been built. Powers the inspector's Changes tab.
+ */
+export async function getNodeDiff(
+  identity: Identity,
+  nodeId: string,
+): Promise<NodeDiffResult | null> {
+  const sb = db();
+  const { data: node } = await sb.from("plan_nodes").select("id, plan_id").eq("id", nodeId).maybeSingle();
+  if (!node) return null;
+
+  // Org scope via plan -> project (don't leak runs across orgs).
+  const { data: plan } = await sb.from("plans").select("project_id").eq("id", node.plan_id).maybeSingle();
+  const { data: project } = await sb.from("projects").select("org_id").eq("id", plan?.project_id).maybeSingle();
+  if (!project || project.org_id !== identity.orgId) return null;
+
+  const { data: runs, error } = await sb
+    .from("runs")
+    .select("id, status, result, finished_at")
+    .eq("node_id", nodeId)
+    .eq("kind", "node_build")
+    .order("started_at", { ascending: false })
+    .limit(1);
+  if (error) throw new Error(`getNodeDiff failed: ${error.message}`);
+
+  const run = runs?.[0];
+  if (!run) return null;
+  const result = (run.result ?? {}) as { diff?: string; files_touched?: string[]; drift?: string[] };
+  return {
+    run_id: run.id as string,
+    status: run.status as string,
+    finished_at: (run.finished_at as string | null) ?? null,
+    diff: result.diff ?? "",
+    files_touched: result.files_touched ?? [],
+    drift: result.drift ?? [],
+  };
+}

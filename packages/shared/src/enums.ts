@@ -87,5 +87,5 @@ export const DelegationStatus = z.enum([
 ]);
 export type DelegationStatus = z.infer<typeof DelegationStatus>;
 
-export const ExecutionBackend = z.enum(["claude_code", "native"]);
+export const ExecutionBackend = z.enum(["claude_code", "native", "a2a_remote"]);
 export type ExecutionBackend = z.infer<typeof ExecutionBackend>;

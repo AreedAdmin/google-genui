@@ -152,10 +152,13 @@ Tier is detected from the request and is a *default*, not a cage (users can prom
 | **G3 Macro** (`g3_macro`) | 15–50 nodes | subsystem refactor / new service | **Swimlane DAG** — lanes by component; explicit integration nodes | many branches; conflict guard prominent | full + cross-node interaction analysis |
 | **G4 Mega** (`g4_mega`) | 50+ nodes | greenfield / large migration | **Zoomable hierarchical map** — clustered super-nodes expand into sub-DAGs; milestone lanes | heavy fan-out; delegation primary | per-cluster + milestone-level |
 
-The planner emits a **`LayoutSpec`** per plan and the engine reconciles the detected tier
-against the actual node count (`TIER_BANDS`: g1=[1,3], g2=[4,15], g3=[15,50], g4=[50,∞]). The
-canvas chosen per tier maps `g1→checklist`, `g2→compact_dag`, `g3→swimlane_dag`,
-`g4→hierarchical_map`.
+The planner emits a **`LayoutSpec`** per plan (including its own `canvas` choice). The engine
+reconciles only the **tier label** against the actual node count (`TIER_BANDS`: g1=[1,3],
+g2=[4,15], g3=[15,50], g4=[50,∞]); the **canvas is model-driven** — the planner picks
+`checklist | compact_dag | swimlane_dag | hierarchical_map` to fit the work's shape, subject to a
+**coherence guard** (`checklist` only ≤3 nodes; `hierarchical_map` only ≥15 nodes) so a layout
+can't render incoherently. Tier is a *prior, not a cage*. *(See
+`plan/03-generative-ui/generative-ui-deepening.md`.)*
 
 ---
 
@@ -398,7 +401,7 @@ google-genui/
 | `env.ts` | All worker config (models, backends, worktree roots, concurrency) — almost everything has a default. |
 | `queue.ts` / `supabase.ts` / `log.ts` | Redis plumbing; service-role client + best-effort `recordEvent()`; tiny logger. |
 | `anthropic.ts` | `toolForcedJSON<T>()` — the core agent primitive: single forced `emit_*` tool, zod-validated, bounded repair retries (≤2). |
-| `agents/planner.ts` | Planner (Opus) → `emit_plan` (nodes + coarse predicted touch-sets + LayoutSpec); granularity prior + tier reconciliation. |
+| `agents/planner.ts` | Planner (Opus) → `emit_plan` (nodes + coarse predicted touch-sets + LayoutSpec); granularity prior + tier reconciliation; **model-driven canvas** (coherence-guarded). |
 | `agents/analysis.ts` | Analysis/annotation (Opus) → `emit_annotations` (5 sections + widget specs), grounded-or-flagged. |
 | `engine/dependency.ts` | The deterministic dependency engine (resolve → edges → branches → independence). |
 | `analysis.ts` | Typed best-effort HTTP client to the Python analysis service. |
@@ -937,11 +940,13 @@ closed component set. **No `dangerouslySetInnerHTML` / eval anywhere.**
 ### Widgets (`components/widgets/`)
 
 `registry.tsx` is the **trusted closed registry**: `REGISTRY: Partial<Record<WidgetKind,
-{propsSchema (zod), Component, maxPropsBytes}>>`. Registered: `schema_diff` (64KB),
+{propsSchema (zod), Component, maxPropsBytes}>>`. Registered (10): `schema_diff` (64KB),
 `api_contract` (64KB), `component_preview` (64KB), `call_graph_impact` (128KB), `key_diff`
-(32KB). `renderWidget()` validates the envelope → looks up the widget → size-caps props →
+(32KB), `test_linkage` (32KB), `resource_diagram` (64KB), `markdown` (32KB), `checklist`
+(32KB), `composed` (256KB). `renderWidget()` validates the envelope → looks up the widget → size-caps props →
 validates props → renders the trusted component, falling back to a `FallbackWidget` at every
-failure. **Never throws.**
+failure. **Never throws.** The analysis agent composes **1–3 grounded widgets per node** (the
+change-type primary plus any secondary the touch-set supports).
 
 | Widget | change_type | Renders |
 |--------|-------------|---------|
@@ -950,6 +955,11 @@ failure. **Never throws.**
 | `component_preview` | ui_component | skeleton structural preview (no execution) + prop/state tables |
 | `call_graph_impact` | logic/refactor | indented caller/callee tree by depth + blast-radius summary |
 | `key_diff` | config | before→after key table + consumer list |
+| `test_linkage` | bugfix/test | test↔symbol coverage map + uncovered-symbol flags |
+| `resource_diagram` | infra | declarative resource boxes (add/modify/remove) + relation list |
+| `markdown` | docs | safe markdown subset (headings/lists/code/bold) — no raw HTML |
+| `checklist` | test | ordered steps with per-item state + completion count |
+| `composed` | any (escape hatch) | model-assembled body from primitive blocks (stat/table/tree/diff_row/timeline/text); each block validated independently, bad ones skipped |
 
 ### State, data, realtime, design
 

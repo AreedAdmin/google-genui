@@ -99,7 +99,7 @@ export function PlanNodeView({ id, data, selected }: NodeProps) {
       </div>
 
       {/* title */}
-      <p className="pl-1.5 text-sm font-semibold leading-snug text-fg line-clamp-2">{d.title}</p>
+      <p className="pl-1.5 text-sm font-semibold leading-snug text-fg line-clamp-3 break-words">{d.title}</p>
 
       {/* emphasis badges + quick actions */}
       <div className="flex items-center gap-1 pl-1.5">

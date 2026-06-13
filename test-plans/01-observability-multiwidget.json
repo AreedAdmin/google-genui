@@ -1,0 +1,1392 @@
+{
+  "plan": {
+    "id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+    "project_id": "00000000-0000-0000-0000-000000000100",
+    "title": "Add observability to the billing service: structured logging, a /metrics endpoint, a Grafana dashboard, an alerting conf",
+    "prompt": "Add observability to the billing service: structured logging, a /metrics endpoint, a Grafana dashboard, an alerting config file, and integration tests for the new endpoints.",
+    "granularity": "g2_meso",
+    "status": "ready",
+    "base_commit": "b07eac099753833b29d06c614149904445739776",
+    "current_revision": 1,
+    "layout_spec": {
+      "tier": "g2_meso",
+      "canvas": "compact_dag",
+      "emphasis": [
+        "api_contract",
+        "test"
+      ],
+      "grouping": null,
+      "direction": "LR",
+      "delegation_ui": "per_branch",
+      "semantic_zoom": false,
+      "parallelism_ui": "branch_buttons",
+      "default_inspector_tab": "changes"
+    },
+    "created_by": "00000000-0000-0000-0000-000000000001",
+    "created_at": "2026-06-13T13:25:45.102262+00:00",
+    "updated_at": "2026-06-13T13:26:17.304+00:00"
+  },
+  "nodes": [
+    {
+      "id": "27ab0b1c-399e-4730-80b9-15ecb8c421ad",
+      "plan_id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+      "revision": 1,
+      "title": "Structured logging instrumentation",
+      "change_type": "logic",
+      "granularity": "g2_meso",
+      "status": "pending",
+      "summary": "Add a structured JSON logger to the billing service and instrument key code paths to emit structured logs with consistent fields (level, ts, service, request_id, msg). Wire optional OTLP log export via OTEL_EXPORTER_OTLP_LOGS_ENDPOINT.",
+      "touch_set": {
+        "resolved": {
+          "files": [
+            "index.js",
+            "src/observability/logger.js"
+          ],
+          "symbols": [
+            "index.js#billing service",
+            "src/observability/logger.js#logger"
+          ],
+          "config_keys": [],
+          "schema_keys": [],
+          "signatures_changed": []
+        },
+        "predicted": {
+          "add": [
+            {
+              "file": "src/observability/logger.js",
+              "kind": "module",
+              "name": "logger"
+            }
+          ],
+          "delete": [],
+          "modify": [
+            {
+              "file": "index.js",
+              "kind": "module",
+              "name": "billing service"
+            }
+          ]
+        },
+        "resolution_confidence": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "branch_id": "d7b0f71a-1446-4e79-8ebb-39620215377b",
+      "parent_node_id": null,
+      "worktree_ref": null,
+      "diff_artifact_path": null,
+      "confidence": 0,
+      "created_at": "2026-06-13T13:26:17.204545+00:00",
+      "updated_at": "2026-06-13T13:26:17.204545+00:00"
+    },
+    {
+      "id": "a54c6ee0-8db2-489d-8107-aa94eb961fb0",
+      "plan_id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+      "revision": 1,
+      "title": "/metrics endpoint",
+      "change_type": "api_contract",
+      "granularity": "g2_meso",
+      "status": "pending",
+      "summary": "Implement a Prometheus-compatible /metrics HTTP endpoint exposing request counts, error rates, and latency histograms for the billing service. Register metrics collectors and a metrics middleware.",
+      "touch_set": {
+        "resolved": {
+          "files": [
+            "index.js",
+            "src/observability/metrics.js"
+          ],
+          "symbols": [
+            "index.js#billing service",
+            "src/observability/metrics.js#GET /metrics",
+            "src/observability/metrics.js#metricsMiddleware"
+          ],
+          "config_keys": [],
+          "schema_keys": [],
+          "signatures_changed": []
+        },
+        "predicted": {
+          "add": [
+            {
+              "file": "src/observability/metrics.js",
+              "kind": "endpoint",
+              "name": "GET /metrics"
+            },
+            {
+              "file": "src/observability/metrics.js",
+              "kind": "middleware",
+              "name": "metricsMiddleware"
+            }
+          ],
+          "delete": [],
+          "modify": [
+            {
+              "file": "index.js",
+              "kind": "module",
+              "name": "billing service"
+            }
+          ]
+        },
+        "resolution_confidence": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "branch_id": "17336f0b-93a7-41e0-bc92-01ed6207c4fd",
+      "parent_node_id": null,
+      "worktree_ref": null,
+      "diff_artifact_path": null,
+      "confidence": 0,
+      "created_at": "2026-06-13T13:26:17.204545+00:00",
+      "updated_at": "2026-06-13T13:26:17.204545+00:00"
+    },
+    {
+      "id": "60f9f244-4571-4d85-8880-fcac9fe5f51c",
+      "plan_id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+      "revision": 1,
+      "title": "Grafana dashboard",
+      "change_type": "config",
+      "granularity": "g2_meso",
+      "status": "pending",
+      "summary": "Add a Grafana dashboard JSON for the billing service with PromQL panels (request rate, error rate, latency percentiles) and Loki log panels keyed off the structured log fields.",
+      "touch_set": {
+        "resolved": {
+          "files": [
+            "observability/grafana/dashboards/billing-service.json"
+          ],
+          "symbols": [
+            "observability/grafana/dashboards/billing-service.json#billing-service"
+          ],
+          "config_keys": [],
+          "schema_keys": [],
+          "signatures_changed": []
+        },
+        "predicted": {
+          "add": [
+            {
+              "file": "observability/grafana/dashboards/billing-service.json",
+              "kind": "dashboard",
+              "name": "billing-service"
+            }
+          ],
+          "delete": [],
+          "modify": []
+        },
+        "resolution_confidence": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "branch_id": "3ce5d780-571e-45e1-8155-6c10b7e90029",
+      "parent_node_id": null,
+      "worktree_ref": null,
+      "diff_artifact_path": null,
+      "confidence": 0,
+      "created_at": "2026-06-13T13:26:17.204545+00:00",
+      "updated_at": "2026-06-13T13:26:17.204545+00:00"
+    },
+    {
+      "id": "11235b02-000c-4eb7-b5c2-e4df30a90f4e",
+      "plan_id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+      "revision": 1,
+      "title": "Alerting config",
+      "change_type": "config",
+      "granularity": "g2_meso",
+      "status": "pending",
+      "summary": "Define alert rules (error-rate threshold, latency SLO breach) and notification routing as a versioned config file consuming the /metrics series.",
+      "touch_set": {
+        "resolved": {
+          "files": [
+            "observability/alerting/billing-alerts.yaml"
+          ],
+          "symbols": [],
+          "config_keys": [
+            "billing-alerts"
+          ],
+          "schema_keys": [],
+          "signatures_changed": []
+        },
+        "predicted": {
+          "add": [
+            {
+              "file": "observability/alerting/billing-alerts.yaml",
+              "kind": "config",
+              "name": "billing-alerts"
+            }
+          ],
+          "delete": [],
+          "modify": []
+        },
+        "resolution_confidence": 0.7
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "branch_id": "6c2e0bac-2211-4c17-8fd2-a3c2cd0dd1a9",
+      "parent_node_id": null,
+      "worktree_ref": null,
+      "diff_artifact_path": null,
+      "confidence": 0.7,
+      "created_at": "2026-06-13T13:26:17.204545+00:00",
+      "updated_at": "2026-06-13T13:26:17.204545+00:00"
+    },
+    {
+      "id": "8e459c9e-4983-4704-be56-efaf04b7c37f",
+      "plan_id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+      "revision": 1,
+      "title": "Observability integration tests",
+      "change_type": "test",
+      "granularity": "g2_meso",
+      "status": "pending",
+      "summary": "Integration tests verifying the /metrics endpoint returns valid Prometheus output and that structured logs emit correct JSON with required fields; assert endpoints are reachable and respond correctly.",
+      "touch_set": {
+        "resolved": {
+          "files": [
+            "test/observability.test.js"
+          ],
+          "symbols": [
+            "test/observability.test.js#observability integration"
+          ],
+          "config_keys": [],
+          "schema_keys": [],
+          "signatures_changed": []
+        },
+        "predicted": {
+          "add": [
+            {
+              "file": "test/observability.test.js",
+              "kind": "test",
+              "name": "observability integration"
+            }
+          ],
+          "delete": [],
+          "modify": []
+        },
+        "resolution_confidence": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "branch_id": "5540b347-f808-4db5-b1f9-356587d8f1b9",
+      "parent_node_id": null,
+      "worktree_ref": null,
+      "diff_artifact_path": null,
+      "confidence": 0,
+      "created_at": "2026-06-13T13:26:17.204545+00:00",
+      "updated_at": "2026-06-13T13:26:17.204545+00:00"
+    }
+  ],
+  "edges": [
+    {
+      "id": "9de39c0b-aa55-4c5b-9bf6-cb906ebaae16",
+      "plan_id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+      "revision": 1,
+      "from_node": "27ab0b1c-399e-4730-80b9-15ecb8c421ad",
+      "to_node": "a54c6ee0-8db2-489d-8107-aa94eb961fb0",
+      "type": "soft_order",
+      "rationale": "Structured logging instrumentation and /metrics endpoint touch the same file/symbol",
+      "evidence": {
+        "reason": "file_overlap",
+        "shared": [
+          "index.js",
+          "index.js#billing service"
+        ],
+        "to_consumes": [],
+        "from_provides": [],
+        "overlap_score": 1
+      },
+      "overlap_score": 1
+    },
+    {
+      "id": "220dc929-9c9a-44a5-a383-d408affdc864",
+      "plan_id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+      "revision": 1,
+      "from_node": "27ab0b1c-399e-4730-80b9-15ecb8c421ad",
+      "to_node": "8e459c9e-4983-4704-be56-efaf04b7c37f",
+      "type": "soft_order",
+      "rationale": "planner soft order: Structured logging instrumentation before Observability integration tests",
+      "evidence": {
+        "reason": "sequence",
+        "shared": [],
+        "to_consumes": [],
+        "from_provides": [],
+        "overlap_score": 0
+      },
+      "overlap_score": 0
+    },
+    {
+      "id": "06ca605a-9200-4e7c-b94b-1475966f2eda",
+      "plan_id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+      "revision": 1,
+      "from_node": "a54c6ee0-8db2-489d-8107-aa94eb961fb0",
+      "to_node": "60f9f244-4571-4d85-8880-fcac9fe5f51c",
+      "type": "soft_order",
+      "rationale": "planner soft order: /metrics endpoint before Grafana dashboard",
+      "evidence": {
+        "reason": "sequence",
+        "shared": [],
+        "to_consumes": [],
+        "from_provides": [],
+        "overlap_score": 0
+      },
+      "overlap_score": 0
+    },
+    {
+      "id": "a42d4e8a-b5ed-452f-a0a8-1a2adcc59cef",
+      "plan_id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+      "revision": 1,
+      "from_node": "a54c6ee0-8db2-489d-8107-aa94eb961fb0",
+      "to_node": "11235b02-000c-4eb7-b5c2-e4df30a90f4e",
+      "type": "soft_order",
+      "rationale": "planner soft order: /metrics endpoint before Alerting config",
+      "evidence": {
+        "reason": "sequence",
+        "shared": [],
+        "to_consumes": [],
+        "from_provides": [],
+        "overlap_score": 0
+      },
+      "overlap_score": 0
+    },
+    {
+      "id": "4c450356-a22c-41aa-9ef4-42c0b33ef7fe",
+      "plan_id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+      "revision": 1,
+      "from_node": "a54c6ee0-8db2-489d-8107-aa94eb961fb0",
+      "to_node": "8e459c9e-4983-4704-be56-efaf04b7c37f",
+      "type": "soft_order",
+      "rationale": "planner soft order: /metrics endpoint before Observability integration tests",
+      "evidence": {
+        "reason": "sequence",
+        "shared": [],
+        "to_consumes": [],
+        "from_provides": [],
+        "overlap_score": 0
+      },
+      "overlap_score": 0
+    }
+  ],
+  "branches": [
+    {
+      "id": "d7b0f71a-1446-4e79-8ebb-39620215377b",
+      "plan_id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+      "label": "Structured logging instrumentation",
+      "node_ids": [
+        "27ab0b1c-399e-4730-80b9-15ecb8c421ad"
+      ],
+      "status": "idle",
+      "assignee_user_id": null,
+      "worktree_path": null,
+      "independent_of": [
+        "3ce5d780-571e-45e1-8155-6c10b7e90029",
+        "6c2e0bac-2211-4c17-8fd2-a3c2cd0dd1a9",
+        "5540b347-f808-4db5-b1f9-356587d8f1b9"
+      ],
+      "created_at": "2026-06-13T13:26:16.622834+00:00"
+    },
+    {
+      "id": "17336f0b-93a7-41e0-bc92-01ed6207c4fd",
+      "plan_id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+      "label": "/metrics endpoint",
+      "node_ids": [
+        "a54c6ee0-8db2-489d-8107-aa94eb961fb0"
+      ],
+      "status": "idle",
+      "assignee_user_id": null,
+      "worktree_path": null,
+      "independent_of": [
+        "3ce5d780-571e-45e1-8155-6c10b7e90029",
+        "6c2e0bac-2211-4c17-8fd2-a3c2cd0dd1a9",
+        "5540b347-f808-4db5-b1f9-356587d8f1b9"
+      ],
+      "created_at": "2026-06-13T13:26:16.622834+00:00"
+    },
+    {
+      "id": "3ce5d780-571e-45e1-8155-6c10b7e90029",
+      "plan_id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+      "label": "Grafana dashboard",
+      "node_ids": [
+        "60f9f244-4571-4d85-8880-fcac9fe5f51c"
+      ],
+      "status": "idle",
+      "assignee_user_id": null,
+      "worktree_path": null,
+      "independent_of": [
+        "d7b0f71a-1446-4e79-8ebb-39620215377b",
+        "17336f0b-93a7-41e0-bc92-01ed6207c4fd",
+        "6c2e0bac-2211-4c17-8fd2-a3c2cd0dd1a9",
+        "5540b347-f808-4db5-b1f9-356587d8f1b9"
+      ],
+      "created_at": "2026-06-13T13:26:16.622834+00:00"
+    },
+    {
+      "id": "6c2e0bac-2211-4c17-8fd2-a3c2cd0dd1a9",
+      "plan_id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+      "label": "Alerting config",
+      "node_ids": [
+        "11235b02-000c-4eb7-b5c2-e4df30a90f4e"
+      ],
+      "status": "idle",
+      "assignee_user_id": null,
+      "worktree_path": null,
+      "independent_of": [
+        "d7b0f71a-1446-4e79-8ebb-39620215377b",
+        "17336f0b-93a7-41e0-bc92-01ed6207c4fd",
+        "3ce5d780-571e-45e1-8155-6c10b7e90029",
+        "5540b347-f808-4db5-b1f9-356587d8f1b9"
+      ],
+      "created_at": "2026-06-13T13:26:16.622834+00:00"
+    },
+    {
+      "id": "5540b347-f808-4db5-b1f9-356587d8f1b9",
+      "plan_id": "0a87dce8-c6c4-4679-bfd1-d54d2edac64e",
+      "label": "Observability integration tests",
+      "node_ids": [
+        "8e459c9e-4983-4704-be56-efaf04b7c37f"
+      ],
+      "status": "idle",
+      "assignee_user_id": null,
+      "worktree_path": null,
+      "independent_of": [
+        "d7b0f71a-1446-4e79-8ebb-39620215377b",
+        "17336f0b-93a7-41e0-bc92-01ed6207c4fd",
+        "3ce5d780-571e-45e1-8155-6c10b7e90029",
+        "6c2e0bac-2211-4c17-8fd2-a3c2cd0dd1a9"
+      ],
+      "created_at": "2026-06-13T13:26:16.622834+00:00"
+    }
+  ],
+  "annotations": [
+    {
+      "node_id": "11235b02-000c-4eb7-b5c2-e4df30a90f4e",
+      "revision": 1,
+      "assumptions": [
+        {
+          "text": "This is a new versioned alerting config file (no prior version in the touch-set), so all keys are net-new additions rather than modifications.",
+          "confidence": 0.7,
+          "grounded_refs": [
+            "observability/alerting/billing-alerts.yaml"
+          ]
+        },
+        {
+          "text": "The alert rules consume an existing /metrics time-series endpoint that already exposes error-rate and latency series for billing.",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "observability/alerting/billing-alerts.yaml#billing-alerts"
+          ]
+        },
+        {
+          "text": "Notification routing targets (channels/receivers) referenced by this config are provisioned out-of-band (e.g. PagerDuty/Slack integration), not defined in this touch-set.",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "observability/alerting/billing-alerts.yaml"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "kind": "failure_mode",
+          "text": "Alert thresholds (error-rate, latency SLO breach) are static config values; if the underlying /metrics series names or labels drift, the rules silently match nothing and produce no alerts (false-negative blind spot).",
+          "severity": "high",
+          "confidence": 0.6,
+          "grounded_refs": [
+            "observability/alerting/billing-alerts.yaml#billing-alerts"
+          ]
+        },
+        {
+          "kind": "edge_case",
+          "text": "Threshold tuning is sensitive: too tight an error-rate or latency bound causes alert flapping/noise; too loose delays incident detection. No baseline data is referenced in the touch-set to validate the chosen values.",
+          "severity": "medium",
+          "confidence": 0.55,
+          "grounded_refs": [
+            "observability/alerting/billing-alerts.yaml#billing-alerts"
+          ]
+        },
+        {
+          "kind": "failure_mode",
+          "text": "Notification routing depends on receivers defined outside this file; a typo'd or unprovisioned route key means alerts fire but are never delivered.",
+          "severity": "high",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "observability/alerting/billing-alerts.yaml"
+          ]
+        },
+        {
+          "kind": "failure_mode",
+          "text": "A malformed YAML rule or invalid duration/expression can break config load, potentially disabling the entire alerting ruleset for this scope on reload.",
+          "severity": "medium",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "observability/alerting/billing-alerts.yaml"
+          ]
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Codifying alert rules and routing as a versioned file makes SLO thresholds reviewable and auditable via diff rather than dashboard-side manual edits.",
+          "grounded_refs": [
+            "observability/alerting/billing-alerts.yaml"
+          ]
+        },
+        {
+          "text": "Establishes automated detection for billing error-rate spikes and latency SLO breaches off the existing /metrics series, closing a monitoring gap.",
+          "grounded_refs": [
+            "observability/alerting/billing-alerts.yaml#billing-alerts"
+          ]
+        }
+      ],
+      "notable_symbols": [
+        {
+          "file": "observability/alerting/billing-alerts.yaml",
+          "role": "provider",
+          "symbol": "billing-alerts",
+          "why_notable": "The versioned config block defining error-rate threshold, latency SLO breach rules, and notification routing; the single source of truth a reviewer must validate against the /metrics series."
+        }
+      ],
+      "widget_specs": [
+        {
+          "props": {
+            "keys": [
+              {
+                "key": "billing-alerts.rules.error_rate.threshold",
+                "after": "0.05",
+                "scope": "config",
+                "before": null,
+                "consumers": [
+                  "observability/alerting/billing-alerts.yaml"
+                ]
+              },
+              {
+                "key": "billing-alerts.rules.latency_slo.threshold_ms",
+                "after": "500",
+                "scope": "config",
+                "before": null,
+                "consumers": [
+                  "observability/alerting/billing-alerts.yaml"
+                ]
+              },
+              {
+                "key": "billing-alerts.rules.latency_slo.for",
+                "after": "5m",
+                "scope": "config",
+                "before": null,
+                "consumers": [
+                  "observability/alerting/billing-alerts.yaml"
+                ]
+              },
+              {
+                "key": "billing-alerts.routing.receiver",
+                "after": "billing-oncall",
+                "scope": "config",
+                "before": null,
+                "consumers": [
+                  "observability/alerting/billing-alerts.yaml"
+                ]
+              }
+            ]
+          },
+          "widget": "key_diff",
+          "version": 1,
+          "grounding": [
+            "observability/alerting/billing-alerts.yaml#billing-alerts",
+            "observability/alerting/billing-alerts.yaml"
+          ],
+          "fallback_text": "New billing-alerts config: error-rate threshold, latency SLO breach rule, and notification routing receiver."
+        },
+        {
+          "props": {
+            "items": [
+              {
+                "label": "Metric series names/labels in rule expressions match the live /metrics output",
+                "state": "todo",
+                "detail": "Prevents silent false-negatives if series drift."
+              },
+              {
+                "label": "Error-rate and latency thresholds validated against historical baseline",
+                "state": "todo",
+                "detail": "Guards against flapping vs missed incidents."
+              },
+              {
+                "label": "Notification receiver 'billing-oncall' is provisioned and reachable",
+                "state": "todo",
+                "detail": "Routing depends on out-of-band receiver definition."
+              },
+              {
+                "label": "YAML lints and config passes promtool/amtool validation on reload",
+                "state": "todo",
+                "detail": "Malformed rule can disable the ruleset."
+              }
+            ],
+            "title": "Alerting config review"
+          },
+          "widget": "checklist",
+          "version": 1,
+          "grounding": [
+            "observability/alerting/billing-alerts.yaml#billing-alerts",
+            "observability/alerting/billing-alerts.yaml"
+          ],
+          "fallback_text": "Review checklist: verify metric labels, thresholds, receiver provisioning, and config validation."
+        }
+      ],
+      "model": "claude-opus-4-8",
+      "tokens": 4124,
+      "cost": 0,
+      "generated_at": "2026-06-13T13:26:39.51+00:00"
+    },
+    {
+      "node_id": "27ab0b1c-399e-4730-80b9-15ecb8c421ad",
+      "revision": 1,
+      "assumptions": [
+        {
+          "text": "A new logger module is introduced at src/observability/logger.js and consumed by the billing service entrypoint in index.js.",
+          "confidence": 0.7,
+          "grounded_refs": [
+            "src/observability/logger.js#logger",
+            "index.js#billing service"
+          ]
+        },
+        {
+          "text": "Structured logs use a consistent field set (level, ts, service, request_id, msg) emitted as JSON from the logger module.",
+          "confidence": 0.6,
+          "grounded_refs": [
+            "src/observability/logger.js#logger"
+          ]
+        },
+        {
+          "text": "OTLP log export is gated behind the OTEL_EXPORTER_OTLP_LOGS_ENDPOINT environment variable and is optional/no-op when unset.",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "src/observability/logger.js#logger"
+          ]
+        },
+        {
+          "text": "request_id is available in the billing request context to populate the log field; if absent the logger must tolerate a missing value.",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "index.js#billing service",
+            "src/observability/logger.js#logger"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "kind": "perf",
+          "text": "Synchronous JSON.stringify on every log call in hot billing code paths can add latency and GC pressure under load; OTLP export should be async/batched to avoid blocking request handling.",
+          "severity": "medium",
+          "confidence": 0.6,
+          "grounded_refs": [
+            "src/observability/logger.js#logger",
+            "index.js#billing service"
+          ]
+        },
+        {
+          "kind": "failure_mode",
+          "text": "If the OTLP logs endpoint is unreachable or slow, export calls could hang or throw; the logger must fail open (drop/buffer) rather than break billing request flow.",
+          "severity": "high",
+          "confidence": 0.6,
+          "grounded_refs": [
+            "src/observability/logger.js#logger"
+          ]
+        },
+        {
+          "kind": "security",
+          "text": "Instrumenting key code paths risks logging sensitive billing data (card tokens, amounts, PII, request bodies) into structured logs and exporting them via OTLP; field whitelisting/redaction is required.",
+          "severity": "high",
+          "confidence": 0.65,
+          "grounded_refs": [
+            "index.js#billing service",
+            "src/observability/logger.js#logger"
+          ]
+        },
+        {
+          "kind": "edge_case",
+          "text": "Missing request_id (e.g., startup logs, background jobs, health checks) must not crash the logger or produce malformed JSON; a default/null-safe value is needed.",
+          "severity": "medium",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "src/observability/logger.js#logger",
+            "index.js#billing service"
+          ]
+        },
+        {
+          "kind": "failure_mode",
+          "text": "A misconfigured or invalid OTEL_EXPORTER_OTLP_LOGS_ENDPOINT could throw during logger initialization in index.js and prevent the billing service from starting.",
+          "severity": "medium",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "src/observability/logger.js#logger",
+            "index.js#billing service"
+          ]
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Centralizing log formatting in a single logger module gives consistent, machine-parseable fields across all billing code paths, improving searchability and alerting.",
+          "grounded_refs": [
+            "src/observability/logger.js#logger"
+          ]
+        },
+        {
+          "text": "Optional OTLP export lets billing logs flow into existing observability backends without code changes, toggled purely by environment configuration.",
+          "grounded_refs": [
+            "src/observability/logger.js#logger"
+          ]
+        },
+        {
+          "text": "Threading request_id through structured logs enables end-to-end request correlation for billing incident debugging.",
+          "grounded_refs": [
+            "index.js#billing service",
+            "src/observability/logger.js#logger"
+          ]
+        }
+      ],
+      "notable_symbols": [
+        {
+          "file": "src/observability/logger.js",
+          "role": "provider",
+          "symbol": "logger",
+          "why_notable": "New structured JSON logger; owns field schema, log levels, and optional OTLP export wiring. Central point reviewers must validate for redaction and fail-open behavior."
+        },
+        {
+          "file": "index.js",
+          "role": "consumer",
+          "symbol": "billing service",
+          "why_notable": "Entrypoint that initializes and consumes the logger and instruments key billing paths; logger init failures or blocking export here affect service startup and request latency."
+        }
+      ],
+      "widget_specs": [
+        {
+          "props": {
+            "root": "index.js#billing service",
+            "affected": [
+              {
+                "file": "index.js",
+                "risk": "behavior",
+                "depth": 0,
+                "symbol": "billing service",
+                "relation": "root"
+              },
+              {
+                "file": "src/observability/logger.js",
+                "risk": "behavior",
+                "depth": 1,
+                "symbol": "logger",
+                "relation": "callee"
+              }
+            ],
+            "truncated": false,
+            "blast_radius": {
+              "files": [
+                "index.js",
+                "src/observability/logger.js"
+              ],
+              "symbols": [
+                "index.js#billing service",
+                "src/observability/logger.js#logger"
+              ],
+              "crosses_branches": false
+            }
+          },
+          "widget": "call_graph_impact",
+          "version": 1,
+          "grounding": [
+            "index.js#billing service",
+            "src/observability/logger.js#logger"
+          ],
+          "fallback_text": "Billing service (root) now depends on the new logger module; logic-only change with no signature changes in the resolved touch-set."
+        },
+        {
+          "props": {
+            "items": [
+              {
+                "label": "Logger emits consistent fields (level, ts, service, request_id, msg) as JSON",
+                "state": "todo",
+                "detail": "Verify in src/observability/logger.js#logger"
+              },
+              {
+                "label": "Sensitive billing data is redacted/whitelisted before logging or export",
+                "state": "todo",
+                "detail": "PII / card token / request body leakage risk"
+              },
+              {
+                "label": "OTLP export is async/batched and fails open when endpoint is unreachable",
+                "state": "todo",
+                "detail": "Gated on OTEL_EXPORTER_OTLP_LOGS_ENDPOINT"
+              },
+              {
+                "label": "Missing request_id handled null-safely (startup, jobs, health checks)",
+                "state": "todo"
+              },
+              {
+                "label": "Logger init does not block or crash billing service startup on bad config",
+                "state": "todo",
+                "detail": "index.js#billing service initialization path"
+              }
+            ],
+            "title": "Structured logging review checklist"
+          },
+          "widget": "checklist",
+          "version": 1,
+          "grounding": [
+            "src/observability/logger.js#logger",
+            "index.js#billing service"
+          ],
+          "fallback_text": "Review items: field schema, redaction, async/fail-open OTLP export, request_id null-safety, and safe init in the billing service."
+        }
+      ],
+      "model": "claude-opus-4-8",
+      "tokens": 4476,
+      "cost": 0,
+      "generated_at": "2026-06-13T13:26:40.946+00:00"
+    },
+    {
+      "node_id": "60f9f244-4571-4d85-8880-fcac9fe5f51c",
+      "revision": 1,
+      "assumptions": [
+        {
+          "text": "The dashboard's PromQL panels assume the billing service exposes Prometheus metrics with the standard request rate, error rate, and latency histogram series names referenced in the panel expressions.",
+          "confidence": 0.55,
+          "grounded_refs": [
+            "observability/grafana/dashboards/billing-service.json#billing-service"
+          ]
+        },
+        {
+          "text": "The Loki log panels assume structured log fields (e.g. level, service, trace_id) are emitted and indexed/labeled by the billing service so the LogQL selectors resolve.",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "observability/grafana/dashboards/billing-service.json"
+          ]
+        },
+        {
+          "text": "A Prometheus datasource and a Loki datasource are provisioned in Grafana under the names/UIDs this dashboard JSON references.",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "observability/grafana/dashboards/billing-service.json"
+          ]
+        },
+        {
+          "text": "The dashboard is imported via Grafana's provisioning/dashboards path, so adding this JSON file is sufficient for it to appear without manual import.",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "observability/grafana/dashboards/billing-service.json"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "kind": "failure_mode",
+          "text": "If metric names in the PromQL expressions drift from what the billing service actually exports, panels render empty with no error, silently hiding the very signals they were meant to surface.",
+          "severity": "medium",
+          "confidence": 0.6,
+          "grounded_refs": [
+            "observability/grafana/dashboards/billing-service.json#billing-service"
+          ]
+        },
+        {
+          "kind": "edge_case",
+          "text": "Hardcoded datasource UIDs in the JSON break the dashboard on import into another Grafana instance where the Prometheus/Loki UIDs differ; datasource variables should be used instead.",
+          "severity": "medium",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "observability/grafana/dashboards/billing-service.json"
+          ]
+        },
+        {
+          "kind": "edge_case",
+          "text": "LogQL selectors keyed off structured log fields fail if those fields are unindexed labels vs. parsed at query time; mismatch yields no log lines or expensive full-stream scans.",
+          "severity": "low",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "observability/grafana/dashboards/billing-service.json"
+          ]
+        },
+        {
+          "kind": "perf",
+          "text": "High-cardinality latency-percentile queries (histogram_quantile over many buckets/labels) and broad Loki log panels can be expensive at short refresh intervals, loading Prometheus/Loki on every dashboard view.",
+          "severity": "low",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "observability/grafana/dashboards/billing-service.json#billing-service"
+          ]
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Consolidates billing-service RED metrics (request rate, error rate, latency percentiles) and correlated structured logs into a single pane, shortening incident triage.",
+          "grounded_refs": [
+            "observability/grafana/dashboards/billing-service.json#billing-service"
+          ]
+        },
+        {
+          "text": "Provisioned as JSON in-repo makes the dashboard version-controlled and reproducible across environments rather than living only in Grafana's UI.",
+          "grounded_refs": [
+            "observability/grafana/dashboards/billing-service.json"
+          ]
+        }
+      ],
+      "notable_symbols": [
+        {
+          "file": "observability/grafana/dashboards/billing-service.json",
+          "role": "provider",
+          "symbol": "billing-service",
+          "why_notable": "The dashboard definition itself; its panel queries are the contract against billing-service Prometheus metrics and Loki log labels that reviewers must verify match production telemetry."
+        }
+      ],
+      "widget_specs": [
+        {
+          "props": {
+            "keys": [
+              {
+                "key": "dashboards/billing-service.json",
+                "after": "billing-service dashboard (RED panels + Loki logs)",
+                "scope": "config",
+                "before": null,
+                "consumers": [
+                  "Grafana provisioning",
+                  "billing on-call"
+                ]
+              },
+              {
+                "key": "panels.request_rate",
+                "after": "PromQL rate() over billing request counter",
+                "scope": "config",
+                "before": null,
+                "consumers": [
+                  "Prometheus datasource"
+                ]
+              },
+              {
+                "key": "panels.error_rate",
+                "after": "PromQL error ratio over billing requests",
+                "scope": "config",
+                "before": null,
+                "consumers": [
+                  "Prometheus datasource"
+                ]
+              },
+              {
+                "key": "panels.latency_percentiles",
+                "after": "histogram_quantile p50/p90/p99",
+                "scope": "config",
+                "before": null,
+                "consumers": [
+                  "Prometheus datasource"
+                ]
+              },
+              {
+                "key": "panels.logs",
+                "after": "LogQL panels keyed off structured log fields",
+                "scope": "config",
+                "before": null,
+                "consumers": [
+                  "Loki datasource"
+                ]
+              }
+            ]
+          },
+          "widget": "key_diff",
+          "version": 1,
+          "grounding": [
+            "observability/grafana/dashboards/billing-service.json#billing-service",
+            "observability/grafana/dashboards/billing-service.json"
+          ],
+          "fallback_text": "New Grafana dashboard billing-service.json adds PromQL panels (request rate, error rate, latency percentiles) and Loki log panels."
+        },
+        {
+          "props": {
+            "items": [
+              {
+                "label": "PromQL metric names match billing-service exporter output",
+                "state": "todo",
+                "detail": "Empty panels if series names drift."
+              },
+              {
+                "label": "Datasource references use variables, not hardcoded UIDs",
+                "state": "todo",
+                "detail": "Hardcoded UIDs break on import to other Grafana instances."
+              },
+              {
+                "label": "LogQL selectors match indexed Loki labels / structured fields",
+                "state": "todo",
+                "detail": "Confirm label vs query-time parse for level/service/trace_id."
+              },
+              {
+                "label": "Dashboard discoverable via Grafana provisioning path",
+                "state": "todo"
+              }
+            ],
+            "title": "Dashboard wiring verification"
+          },
+          "widget": "checklist",
+          "version": 1,
+          "grounding": [
+            "observability/grafana/dashboards/billing-service.json",
+            "observability/grafana/dashboards/billing-service.json#billing-service"
+          ],
+          "fallback_text": "Checklist: verify metric names, datasource UIDs, LogQL labels, and provisioning path."
+        }
+      ],
+      "model": "claude-opus-4-8",
+      "tokens": 4456,
+      "cost": 0,
+      "generated_at": "2026-06-13T13:26:41.617+00:00"
+    },
+    {
+      "node_id": "a54c6ee0-8db2-489d-8107-aa94eb961fb0",
+      "revision": 1,
+      "assumptions": [
+        {
+          "text": "The /metrics endpoint is mounted on the same HTTP server as the billing service entrypoint rather than a separate admin port.",
+          "confidence": 0.55,
+          "grounded_refs": [
+            "index.js#billing service",
+            "src/observability/metrics.js#GET /metrics"
+          ]
+        },
+        {
+          "text": "metricsMiddleware is registered globally so it can observe request counts, error rates, and latency for all billing routes.",
+          "confidence": 0.6,
+          "grounded_refs": [
+            "src/observability/metrics.js#metricsMiddleware",
+            "index.js#billing service"
+          ]
+        },
+        {
+          "text": "The endpoint emits Prometheus text exposition format (text/plain; version=0.0.4) and is intended to be scraped by a Prometheus server.",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "src/observability/metrics.js#GET /metrics"
+          ]
+        },
+        {
+          "text": "A single shared registry holds the request-count, error-rate, and latency-histogram collectors registered at startup.",
+          "confidence": 0.45,
+          "grounded_refs": [
+            "src/observability/metrics.js#GET /metrics",
+            "src/observability/metrics.js#metricsMiddleware"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "kind": "security",
+          "text": "/metrics is unauthenticated by default and may expose request volumes, error rates, and route names to anyone who can reach the billing service port. Restrict via network policy or auth, or bind to an internal interface.",
+          "severity": "high",
+          "confidence": 0.7,
+          "grounded_refs": [
+            "src/observability/metrics.js#GET /metrics",
+            "index.js#billing service"
+          ]
+        },
+        {
+          "kind": "perf",
+          "text": "If metricsMiddleware records a histogram label per-path without normalizing dynamic segments (e.g. /invoices/:id), high-cardinality labels can cause unbounded memory growth in the registry.",
+          "severity": "high",
+          "confidence": 0.65,
+          "grounded_refs": [
+            "src/observability/metrics.js#metricsMiddleware"
+          ]
+        },
+        {
+          "kind": "failure_mode",
+          "text": "If metricsMiddleware is registered after some routes, requests handled by earlier-registered handlers will be missing from request-count/latency metrics, silently undercounting traffic.",
+          "severity": "medium",
+          "confidence": 0.6,
+          "grounded_refs": [
+            "src/observability/metrics.js#metricsMiddleware",
+            "index.js#billing service"
+          ]
+        },
+        {
+          "kind": "race_condition",
+          "text": "Registering collectors more than once (e.g. due to module re-require or hot reload) typically throws a duplicate-registration error and can crash billing service startup.",
+          "severity": "medium",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "src/observability/metrics.js#GET /metrics",
+            "index.js#billing service"
+          ]
+        },
+        {
+          "kind": "edge_case",
+          "text": "Latency histograms with poorly chosen buckets will clip billing requests above the top bucket into +Inf, hiding tail-latency regressions.",
+          "severity": "low",
+          "confidence": 0.5,
+          "grounded_refs": [
+            "src/observability/metrics.js#metricsMiddleware"
+          ]
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Provides a standard scrape target so billing request throughput, error rate, and latency can be alerted on in Prometheus/Grafana without code changes per dashboard.",
+          "grounded_refs": [
+            "src/observability/metrics.js#GET /metrics"
+          ]
+        },
+        {
+          "text": "Centralizing instrumentation in metricsMiddleware gives uniform coverage of all billing routes from a single registration point.",
+          "grounded_refs": [
+            "src/observability/metrics.js#metricsMiddleware",
+            "index.js#billing service"
+          ]
+        }
+      ],
+      "notable_symbols": [
+        {
+          "file": "src/observability/metrics.js",
+          "role": "provider",
+          "symbol": "GET /metrics",
+          "why_notable": "Exposes the Prometheus exposition endpoint and serializes the shared registry; the contract reviewers must verify."
+        },
+        {
+          "file": "src/observability/metrics.js",
+          "role": "provider",
+          "symbol": "metricsMiddleware",
+          "why_notable": "Records request counts, error rates, and latency histograms; label cardinality and registration order matter."
+        },
+        {
+          "file": "index.js",
+          "role": "consumer",
+          "symbol": "billing service",
+          "why_notable": "Mounts the endpoint and installs the middleware; placement determines coverage and exposure surface."
+        }
+      ],
+      "widget_specs": [
+        {
+          "props": {
+            "path": "/metrics",
+            "method": "GET",
+            "request": {
+              "body": [],
+              "query": [],
+              "params": []
+            },
+            "breaking": [
+              {
+                "why": "Exposes operational metrics (route names, traffic volume, error rates) over the existing service port unless access is restricted.",
+                "what": "New unauthenticated /metrics route added to the billing service",
+                "severity": "high"
+              },
+              {
+                "why": "Adds per-request instrumentation; misordered registration or high-cardinality path labels affect correctness and memory.",
+                "what": "Global metricsMiddleware inserted into the request pipeline",
+                "severity": "medium"
+              }
+            ],
+            "responses": [
+              {
+                "body": [],
+                "status": 200,
+                "description": "Prometheus text exposition (Content-Type: text/plain; version=0.0.4) of request_total, error_total, and request_duration_seconds histograms."
+              },
+              {
+                "body": [],
+                "status": 500,
+                "description": "Registry serialization failure."
+              }
+            ]
+          },
+          "widget": "api_contract",
+          "version": 1,
+          "grounding": [
+            "src/observability/metrics.js#GET /metrics",
+            "src/observability/metrics.js#metricsMiddleware",
+            "index.js#billing service"
+          ],
+          "fallback_text": "GET /metrics returns Prometheus-format request/error/latency metrics for the billing service."
+        },
+        {
+          "props": {
+            "items": [
+              {
+                "label": "Restrict or authenticate /metrics access",
+                "state": "todo",
+                "detail": "Bind to internal interface or gate behind auth/network policy."
+              },
+              {
+                "label": "Register metricsMiddleware before all billing routes",
+                "state": "todo",
+                "detail": "Ensure full request coverage with no undercounting."
+              },
+              {
+                "label": "Normalize path labels to avoid high cardinality",
+                "state": "todo",
+                "detail": "Collapse dynamic segments like /invoices/:id."
+              },
+              {
+                "label": "Guard against duplicate collector registration",
+                "state": "todo",
+                "detail": "Use a single shared registry / idempotent init."
+              },
+              {
+                "label": "Verify histogram buckets cover billing latency tail",
+                "state": "todo"
+              }
+            ],
+            "title": "Metrics endpoint review"
+          },
+          "widget": "checklist",
+          "version": 1,
+          "grounding": [
+            "src/observability/metrics.js#GET /metrics",
+            "src/observability/metrics.js#metricsMiddleware",
+            "index.js#billing service"
+          ],
+          "fallback_text": "Review checklist for the /metrics endpoint and metrics middleware."
+        }
+      ],
+      "model": "claude-opus-4-8",
+      "tokens": 4593,
+      "cost": 0,
+      "generated_at": "2026-06-13T13:26:42.12+00:00"
+    },
+    {
+      "node_id": "8e459c9e-4983-4704-be56-efaf04b7c37f",
+      "revision": 1,
+      "assumptions": [
+        {
+          "text": "A /metrics endpoint exists and exposes Prometheus-format text that the integration test scrapes and validates.",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "test/observability.test.js#observability integration"
+          ]
+        },
+        {
+          "text": "Structured logging is configured to emit JSON lines with a stable set of required fields that the test asserts against.",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "test/observability.test.js#observability integration"
+          ]
+        },
+        {
+          "text": "The test boots or connects to a running instance of the service so that endpoints are actually reachable over HTTP.",
+          "confidence": 0.35,
+          "grounded_refs": [
+            "test/observability.test.js"
+          ]
+        }
+      ],
+      "analysis": [
+        {
+          "kind": "failure_mode",
+          "text": "If the test relies on a live server bound to a fixed port, a port collision or a not-yet-started server causes connection-refused flakiness rather than a meaningful assertion failure.",
+          "severity": "medium",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "test/observability.test.js#observability integration"
+          ]
+        },
+        {
+          "kind": "edge_case",
+          "text": "Prometheus exposition format validation may be too strict (exact label ordering, HELP/TYPE lines) and break on benign metric additions, or too loose and miss malformed output.",
+          "severity": "medium",
+          "confidence": 0.4,
+          "grounded_refs": [
+            "test/observability.test.js#observability integration"
+          ]
+        },
+        {
+          "kind": "race_condition",
+          "text": "Asserting on log JSON requires capturing async log output; if the test reads logs before the flush completes it may intermittently miss required fields.",
+          "severity": "medium",
+          "confidence": 0.35,
+          "grounded_refs": [
+            "test/observability.test.js#observability integration"
+          ]
+        },
+        {
+          "kind": "perf",
+          "text": "Integration tests that spin up the full app and scrape /metrics add wall-clock time to CI; without a timeout the suite can hang on an unreachable endpoint.",
+          "severity": "low",
+          "confidence": 0.35,
+          "grounded_refs": [
+            "test/observability.test.js"
+          ]
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Provides regression coverage that the /metrics endpoint stays reachable and emits parseable Prometheus output, catching observability breakage before deploy.",
+          "grounded_refs": [
+            "test/observability.test.js#observability integration"
+          ]
+        },
+        {
+          "text": "Pins the structured-log contract (required JSON fields) so downstream log pipelines and dashboards are protected from accidental field renames.",
+          "grounded_refs": [
+            "test/observability.test.js#observability integration"
+          ]
+        }
+      ],
+      "notable_symbols": [
+        {
+          "file": "test/observability.test.js",
+          "role": "consumer",
+          "symbol": "observability integration",
+          "why_notable": "The integration test suite that drives the /metrics endpoint and asserts on Prometheus output and structured-log JSON fields; sole symbol in the touch-set."
+        }
+      ],
+      "widget_specs": [
+        {
+          "props": {
+            "items": [
+              {
+                "label": "/metrics endpoint reachable (HTTP 200)",
+                "state": "todo",
+                "detail": "Assert the endpoint responds and is reachable."
+              },
+              {
+                "label": "Response is valid Prometheus exposition format",
+                "state": "todo",
+                "detail": "Parse/validate HELP, TYPE, and metric lines."
+              },
+              {
+                "label": "Structured logs emit valid JSON",
+                "state": "todo",
+                "detail": "Each log line parses as JSON."
+              },
+              {
+                "label": "Required log fields present",
+                "state": "todo",
+                "detail": "Assert required structured-log fields exist."
+              },
+              {
+                "label": "Per-request timeout guards against hung endpoints",
+                "state": "todo",
+                "detail": "Prevent CI hangs on unreachable endpoints."
+              }
+            ],
+            "title": "Observability integration test coverage"
+          },
+          "widget": "checklist",
+          "version": 1,
+          "grounding": [
+            "test/observability.test.js#observability integration"
+          ],
+          "fallback_text": "Checklist of observability integration assertions: /metrics reachable, valid Prometheus output, JSON logs with required fields."
+        },
+        {
+          "props": {
+            "title": "Test scope & flake-resistance notes",
+            "markdown": "# Observability integration tests\n- Validates `/metrics` returns valid **Prometheus** exposition output\n- Asserts structured logs emit **JSON** with required fields\n- Confirms endpoints are **reachable** and respond correctly\n- Add explicit `timeout`s and await log flushes to avoid flaky connection/async races"
+          },
+          "widget": "markdown",
+          "version": 1,
+          "grounding": [
+            "test/observability.test.js#observability integration"
+          ],
+          "fallback_text": "Test verifies /metrics Prometheus output and structured JSON logs; add timeouts and flush awaits to reduce flakiness."
+        }
+      ],
+      "model": "claude-opus-4-8",
+      "tokens": 3893,
+      "cost": 0,
+      "generated_at": "2026-06-13T13:26:58.014+00:00"
+    }
+  ]
+}

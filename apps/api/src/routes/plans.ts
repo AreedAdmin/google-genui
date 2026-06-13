@@ -7,7 +7,7 @@ import {
 } from "@trellis/shared";
 import { authPreHandler } from "../auth.js";
 import { ApiErrors } from "../errors.js";
-import { createPlan, getPlanGraph, replan, NotFoundError } from "../services/plans.js";
+import { createPlan, getPlanGraph, replan, listPlans, NotFoundError } from "../services/plans.js";
 import { runSelection } from "../services/runs.js";
 import { delegateSubtree } from "../services/delegations.js";
 
@@ -24,6 +24,12 @@ export async function planRoutes(app: FastifyInstance): Promise<void> {
       if (err instanceof NotFoundError) return ApiErrors.notFound(reply, err.message);
       throw err;
     }
+  });
+
+  // GET /plans — list the caller's plans (home "recent plans").
+  app.get("/plans", { preHandler: authPreHandler }, async (request, reply) => {
+    const plans = await listPlans(request.identity);
+    return reply.code(200).send(plans);
   });
 
   // GET /plans/:id — assemble a PlanGraph.

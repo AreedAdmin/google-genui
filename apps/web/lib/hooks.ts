@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import type { PlanGraph } from "@trellis/shared";
-import { api, type PlanListItem } from "./api";
+import { api, type PlanListItem, type ProjectListItem, type AccessibleRepo, type NodeDiff } from "./api";
 import { getAccessToken, subscribePlanRealtime } from "./supabase";
 import { getFixturePlan, FIXTURE_PLAN_LIST } from "./fixtures";
 import { useCanvasStore } from "./store";
@@ -30,8 +30,72 @@ export function usePlanList() {
   });
 }
 
+/** Projects (connected repos) for the active org. Empty list on API failure. */
+export function useProjects() {
+  return useQuery<ProjectListItem[]>({
+    queryKey: ["projects"],
+    queryFn: async () => {
+      try {
+        const token = await getAccessToken();
+        return await api.listProjects(token);
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 30_000,
+  });
+}
+
+/** Connect a new repo (POST /v1/projects); the server validates it before saving. */
+export function useCreateProject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { name: string; repo_url: string; default_branch?: string }) => {
+      const token = await getAccessToken();
+      return api.createProject(body, token);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+  });
+}
+
+/** Repos the configured GITHUB_TOKEN can access — for the connect-repo dropdown. */
+export function useGithubRepos() {
+  return useQuery<{ authenticated: boolean; repos: AccessibleRepo[] }>({
+    queryKey: ["github-repos"],
+    queryFn: async () => {
+      try {
+        const token = await getAccessToken();
+        return await api.listGithubRepos(token);
+      } catch {
+        return { authenticated: false, repos: [] };
+      }
+    },
+    staleTime: 60_000,
+  });
+}
+
+/** Latest captured build diff for a node (polls while the node is running). */
+export function useNodeDiff(nodeId: string | null, status?: string) {
+  return useQuery<NodeDiff | null>({
+    queryKey: ["node-diff", nodeId],
+    enabled: !!nodeId,
+    queryFn: async () => {
+      const token = await getAccessToken();
+      return api.getNodeDiff(nodeId as string, token);
+    },
+    staleTime: 2_000,
+    refetchInterval: status === "running" ? 4000 : false,
+  });
+}
+
 export function usePlanGraph(planId: string) {
   const queryClient = useQueryClient();
+  // Bounds the post-build annotation poll (below) so a node whose analysis
+  // permanently failed can't poll forever; reset whenever the plan changes.
+  const pollStartRef = useRef<number | null>(null);
+  useEffect(() => {
+    pollStartRef.current = null;
+  }, [planId]);
 
   const query = useQuery<PlanGraph>({
     queryKey: ["plan", planId],
@@ -46,6 +110,27 @@ export function usePlanGraph(planId: string) {
       }
     },
     staleTime: 5_000,
+    // Keep polling until the canvas is actually COMPLETE. The plan flips to
+    // "ready" the moment plan-build finishes (nodes exist), but the per-node
+    // annotations (the 5 inspector sections + widgets) are written a few seconds
+    // later by the separate analysis worker — and the anon/RLS-gated realtime
+    // path may never deliver them in dev. So poll while the plan is still
+    // building OR any node is still missing its annotation, then stop. Capped at
+    // 5 min as a safety net for a node whose analysis permanently failed.
+    refetchInterval: (query) => {
+      const g = query.state.data;
+      const status = g?.plan?.status;
+      const building = status === "planning" || status === "draft";
+      const annotationsIncomplete = !!g && g.nodes.length > 0 && g.annotations.length < g.nodes.length;
+      if (!building && !annotationsIncomplete) {
+        pollStartRef.current = null;
+        return false;
+      }
+      const now = Date.now();
+      if (pollStartRef.current === null) pollStartRef.current = now;
+      if (now - pollStartRef.current > 300_000) return false; // 5-min safety cap
+      return 2500;
+    },
   });
 
   // Wire Supabase Realtime → invalidate on durable changes (graph-canvas.md §7).

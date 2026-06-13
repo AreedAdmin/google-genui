@@ -1,6 +1,8 @@
 # Realtime UI — Live Behavior, Streaming & Optimistic State
 
 > Status: **Canonical.** Specifies how the Trellis client stays live: subscribing to Supabase Realtime (durable state) and Redis run-streams via a WS relay (high-frequency signal), optimistic edits with reconciliation, live re-flow animation, streaming analysis/widgets into the inspector, presence, resync, and the Zustand + TanStack Query state model.
+>
+> **Amended by [mandated-integrations.md](../01-architecture/mandated-integrations.md)** — the agent→canvas live transport is now **AG-UI consumed by CopilotKit** (`useCoAgent`/`useCopilotAction`, headless); Supabase Realtime stays the durable multi-user truth plane (two-plane hybrid). See §3.1, §4, §6.
 
 This implements the "iterate in real time" promise from [scope §2](../00-overview/scope.md) and the "re-flow on change" hook from [`granularity-layouts.md` §5](./granularity-layouts.md). It honors the canon split from [tech-stack §5](../01-architecture/tech-stack.md): **Supabase Realtime carries durable state changes; Redis carries ephemeral, high-frequency signal.** Reads on the component system in [`component-library.md`](./component-library.md) and the streamed widgets in [`widget-generation.md`](./widget-generation.md).
 

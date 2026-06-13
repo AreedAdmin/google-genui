@@ -7,6 +7,7 @@ import { env } from "../env.js";
 import { ensureRepo, createWorktree, diffWorktree, changedFiles, detectTestCommand } from "../worktree.js";
 import { getRunner } from "../runners/index.js";
 import { RunStream } from "../stream.js";
+import { GuiStream } from "../gui-stream.js";
 import { logger } from "../log.js";
 
 const log = logger("node-run");
@@ -26,6 +27,9 @@ const log = logger("node-run");
 
 interface NodeRunData {
   node_id: string;
+  /** Pre-created run id from the API's dispatchNode (so web + worker share it). */
+  run_id?: string;
+  plan_id?: string;
   /** Optional override; else project/plan execution_backend, else env default. */
   execution_backend?: string;
 }
@@ -73,11 +77,15 @@ async function handleNodeRun(job: Job<NodeRunData>): Promise<void> {
     .eq("node_id", node_id)
     .maybeSingle();
 
-  const runId = randomUUID();
+  // Reuse the run row the API's dispatchNode pre-created (the SAME id the web
+  // subscribes to) so the live console streams correctly; fall back to a fresh id
+  // for callers that don't pre-create one. upsert => update the queued row,
+  // never insert a duplicate.
+  const runId = job.data.run_id ?? randomUUID();
   const streamKey = keys.runStream(runId);
   const backend = job.data.execution_backend ?? project?.execution_backend ?? env.executionBackend;
 
-  await supabase.from("runs").insert({
+  await supabase.from("runs").upsert({
     id: runId,
     plan_id: node.plan_id,
     node_id,
@@ -93,6 +101,10 @@ async function handleNodeRun(job: Job<NodeRunData>): Promise<void> {
 
   const stream = new RunStream(runId);
   await stream.emit("status", { state: "queued", node_id });
+
+  // AG-UI: structured lifecycle/status events for this node run drive the canvas.
+  const gui = new GuiStream(node.plan_id);
+  await gui.runStarted(runId);
 
   const touchSet = (node.touch_set ?? { predicted: { add: [], modify: [], delete: [] } }) as TouchSet;
 
@@ -167,7 +179,7 @@ async function handleNodeRun(job: Job<NodeRunData>): Promise<void> {
         finished_at: new Date().toISOString(),
         tokens: result.tokens,
         cost: result.cost,
-        result: { ...result, drift, diff_present: diff.length > 0, files_touched: touched },
+        result: { ...result, drift, diff_present: diff.length > 0, diff: diff.slice(0, 200_000), files_touched: touched },
       })
       .eq("id", runId);
 
@@ -185,6 +197,8 @@ async function handleNodeRun(job: Job<NodeRunData>): Promise<void> {
     });
 
     await stream.emit("status", { state: finalNodeStatus, summary: result.summary });
+    await gui.custom("node_status", { node_id, status: finalNodeStatus });
+    await gui.runFinished(runId);
     log.info(`node ${node_id} -> ${finalNodeStatus} (${touched.length} files, ${drift.length} drift)`);
 
     // GC the worktree (object data preserved via the diff result already stored).
@@ -198,7 +212,10 @@ async function handleNodeRun(job: Job<NodeRunData>): Promise<void> {
     await supabase.from("plan_nodes").update({ status: "failed" }).eq("id", node_id);
     await recordEvent(node.plan_id, "node.failed", { node_id, error: (err as Error).message });
     await stream.emit("error", { message: (err as Error).message });
+    await gui.runError((err as Error).message);
+    await gui.custom("node_status", { node_id, status: "failed" });
   } finally {
     await stream.close();
+    await gui.close();
   }
 }
