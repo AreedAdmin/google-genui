@@ -1,0 +1,1352 @@
+# Trellis — Master Project Context
+
+> **The single document a developer reads to understand everything about Trellis.**
+> It covers the product vision, the as-built architecture, every service and package, the
+> data model, the API surface, the agent system, the generative-UI system, the dependency
+> engine, collaboration/delegation, the safety model, local dev, and the glossary.
+>
+> Two sources feed this doc: the canonical design docs under [`plan/`](./plan/) (the *intent
+> & scope*), and the actual source under `apps/`, `packages/`, `services/` (the *as-built*
+> reality). Where they differ, this doc states the as-built truth and notes the intent.
+>
+> **File note:** `.mmd` is normally the Mermaid extension; this file is Markdown with embedded
+> ```mermaid``` diagrams. Rename to `context.md` if you want editor syntax highlighting.
+
+---
+
+## Table of contents
+
+1. [TL;DR — what Trellis is](#1-tldr--what-trellis-is)
+2. [The thesis, the problem, the four pillars](#2-the-thesis-the-problem-the-four-pillars)
+3. [The six-step product spine](#3-the-six-step-product-spine)
+4. [The granularity model (G1–G4)](#4-the-granularity-model-g1g4)
+5. [Personas](#5-personas)
+6. [Scope — in / out / non-goals](#6-scope--in--out--non-goals)
+7. [Success metrics (FIR and friends)](#7-success-metrics-fir-and-friends)
+8. [System architecture](#8-system-architecture)
+9. [Tech stack](#9-tech-stack)
+10. [Monorepo layout (file-by-file)](#10-monorepo-layout-file-by-file)
+11. [Data model (Postgres schema)](#11-data-model-postgres-schema)
+12. [Shared contracts (`@trellis/shared`)](#12-shared-contracts-trellisshared)
+13. [The orchestration API (`apps/api`)](#13-the-orchestration-api-appsapi)
+14. [The workers (`apps/workers`)](#14-the-workers-appsworkers)
+15. [The dependency-inference engine](#15-the-dependency-inference-engine)
+16. [The Python analysis service (`services/analysis`)](#16-the-python-analysis-service-servicesanalysis)
+17. [The agent system (models, prompts, tool-forced JSON)](#17-the-agent-system-models-prompts-tool-forced-json)
+18. [Execution, worktrees, drift & integration](#18-execution-worktrees-drift--integration)
+19. [The web frontend (`apps/web`)](#19-the-web-frontend-appsweb)
+20. [The generative-UI system (two axes)](#20-the-generative-ui-system-two-axes)
+21. [Collaboration & delegation](#21-collaboration--delegation)
+22. [Realtime & streaming](#22-realtime--streaming)
+23. [Security & auth model](#23-security--auth-model)
+24. [The "degrade-never-crash" philosophy](#24-the-degrade-never-crash-philosophy)
+25. [Environment variables reference](#25-environment-variables-reference)
+26. [Local development & running](#26-local-development--running)
+27. [Build status — as-built vs planned](#27-build-status--as-built-vs-planned)
+28. [End-to-end request lifecycles (flows A–D)](#28-end-to-end-request-lifecycles-flows-ad)
+29. [Glossary](#29-glossary)
+30. [Appendix — principles, competitive landscape, open questions](#30-appendix--principles-competitive-landscape-open-questions)
+
+---
+
+## 1. TL;DR — what Trellis is
+
+**Trellis is a generative-UI agentic coding planner.** You describe code work at any
+granularity ("tighten this validator", "add OAuth login", "extract billing into a service",
+"migrate REST → gRPC across the monorepo"); Trellis produces an **interactive dependency
+graph** of the changes, where each node carries **grounded engineering analysis** (assumptions,
+risks, benefits, notable symbols) cited to real symbols in your repo. You can then:
+
+- **Inspect** each node with a change-type-specific generated widget (schema diff, API
+  contract, component preview, call-graph impact…).
+- **Iterate** by adding context — the plan re-flows in real time as a new revision.
+- **Operate** — dispatch independent branches **in parallel** to a coding agent (Claude Code,
+  headless), each on its own isolated git worktree; diffs stream back live; an **integration
+  node** reconverges branches behind a test gate.
+- **Delegate** — prune a subtree, export it as a portable spec, and hand it to another user or
+  agent with a role (viewer / runner / editor).
+
+The product's one-line thesis:
+
+> **The agent's output is software, not an answer.** Every coding assistant returns a chat
+> reply or a diff. Trellis returns a third thing: **a plan you can operate.**
+
+It is positioned as **"GitHub for plans"**: decompose → delegate → reconverge.
+
+---
+
+## 2. The thesis, the problem, the four pillars
+
+### The problem
+
+Engineers and the agents that assist them **plan in their heads and execute linearly**.
+Today's coding agents (Copilot Workspace, Cursor agent, Devin, Claude Code) produce a *linear*
+plan and then build. There is no shared, operable artifact that:
+
+1. Shows the **dependency structure** of a change and which parts are **independent** (and
+   therefore safely parallelizable),
+2. Carries **grounded engineering analysis** per unit of work,
+3. Lets a team **fan work out to multiple agents or people** without merge conflicts, and
+4. Adapts its **presentation** to the size and *kind* of work.
+
+Trellis is that artifact.
+
+### The four pillars
+
+| Pillar | Name | What it means | Where it lives in code |
+|--------|------|---------------|------------------------|
+| **P1** | **Plan Graph (DAG)** | Decompose intent into a dependency graph of grounded change-nodes; mark independent branches. | `apps/workers` planner + `engine/dependency.ts`; `packages/shared` entities |
+| **P2** | **Grounded Analysis** | Every claim (assumption, risk, benefit) cites a real `file#symbol` or is labeled low-confidence. | `apps/workers/src/agents/analysis.ts`; `services/analysis` |
+| **P3** | **Parallel Execution & Delegation** | Run proven-independent branches concurrently on isolated worktrees; reconverge at integration nodes; delegate subtrees. | `apps/workers/src/workers/{node-run,integration}.ts`, `runners/`, `worktree.ts`; `apps/api` delegations |
+| **P4** | **Context-Adaptive Generative UI** | The canvas layout adapts to *granularity*; each node body adapts to *change type*. Always from validated specs, never raw model HTML. | `apps/web` canvas/inspector/widgets; `packages/shared/genui.ts` |
+
+### The governing principle
+
+> **LLMs *propose and explain*; deterministic services *enumerate and decide*.**
+> The model never has the last word on a dependency.
+
+The planner (LLM) *proposes* coarse predicted touch-sets. The **dependency engine** (pure
+code) + the **Python analysis service** (tree-sitter + networkx) *decide* the real edges,
+overlap, and independence. This is the safety core of the whole product.
+
+---
+
+## 3. The six-step product spine
+
+Every use case is an instance of this spine (`plan/00-overview/scope.md §2`):
+
+```mermaid
+flowchart LR
+  D[Describe<br/>connect repo + state intent] --> P[Plan<br/>planner → nodes;<br/>engine → edges & branches]
+  P --> I[Inspect<br/>5 sections + change-type widget]
+  I --> It[Iterate<br/>add context → live re-plan<br/>new revision]
+  It --> O[Operate<br/>run node / branch / selection<br/>parallel on worktrees]
+  O --> De[Delegate<br/>prune subtree → portable spec<br/>share with role]
+  It -.re-flow.-> P
+  O -.drift re-derive.-> P
+```
+
+1. **Describe** — connect a repo, state intent at any granularity.
+2. **Plan** — the **Planner** decomposes into Nodes; the **Dependency-Inference Engine** grounds
+   each node in real symbols, derives Edges, partitions independent **Branches**.
+3. **Inspect** — open a node: *Changes*, *Assumptions*, *Analysis (risks)*, *Benefits*,
+   *Notable symbols*, plus a change-type widget.
+4. **Iterate** — add context; the plan re-flows live (nodes/edges update, independence
+   re-derived), producing a new **revision**.
+5. **Operate** — Run a node / branch / selection; agents execute on isolated worktrees; diffs
+   stream back; **Integration** nodes reconverge branches.
+6. **Delegate** — export a subtree as a portable spec; share read-only / runnable / full
+   handoff with another user or agent.
+
+---
+
+## 4. The granularity model (G1–G4)
+
+The single most distinctive product idea: **layout = `f(granularity × change_type × context)`**.
+Tier is detected from the request and is a *default*, not a cage (users can promote/demote).
+
+| Tier | Size | Detection signal | Canvas layout | Parallelism | Analysis depth |
+|------|------|------------------|---------------|-------------|----------------|
+| **G1 Micro** (`g1_micro`) | 1–3 nodes | single symbol/file; "fix/rename/tighten" | **Diff-first checklist** — DAG collapses to a vertical list; inspector opens to the diff | rarely needed | focused: assumptions + the 1–2 real risks |
+| **G2 Meso** (`g2_meso`) | 4–15 nodes | one feature/route/flow | **Compact DAG** (left→right); contracts & test plan emphasized | 1–3 branches | per-node full card |
+| **G3 Macro** (`g3_macro`) | 15–50 nodes | subsystem refactor / new service | **Swimlane DAG** — lanes by component; explicit integration nodes | many branches; conflict guard prominent | full + cross-node interaction analysis |
+| **G4 Mega** (`g4_mega`) | 50+ nodes | greenfield / large migration | **Zoomable hierarchical map** — clustered super-nodes expand into sub-DAGs; milestone lanes | heavy fan-out; delegation primary | per-cluster + milestone-level |
+
+The planner emits a **`LayoutSpec`** per plan and the engine reconciles the detected tier
+against the actual node count (`TIER_BANDS`: g1=[1,3], g2=[4,15], g3=[15,50], g4=[50,∞]). The
+canvas chosen per tier maps `g1→checklist`, `g2→compact_dag`, `g3→swimlane_dag`,
+`g4→hierarchical_map`.
+
+---
+
+## 5. Personas
+
+| ID | Persona | Goal | Home tier |
+|----|---------|------|-----------|
+| **P-A** | **Maya** — Staff Engineer decomposing a refactor | Externalize a large refactor into a concrete, reviewable, parallelizable plan | **G3** (some G4) |
+| **P-B** | **Devon** — Tech Lead delegating work | Slice a feature across 3–5 engineers/agents so pieces progress in parallel and reconverge cleanly | **G3–G4** |
+| **P-C** | **Sam** — Solo dev shipping a feature | Plan & ship fast; run independent pieces (route/UI/tests) at once | **G2** (the sweet spot) |
+| **P-D** | **Río** — Agent-fleet operator | Drive migrations/scaffolds by fanning many nodes to many builder agents at max safe concurrency | **G4** |
+| **P-E** | **Partner Team** — external design-partner squad | Use Trellis as a shared operable planning surface with safe role-based permissions | **G2–G3** |
+
+The scripted demo (deliverable **D17**) is assembled from **UC-2 (parallel dispatch) + UC-4
+(subtree delegation + integration) + UC-1/UC-6 (tier range) + UC-8 (drift / re-plan)**. The
+canonical demo repo is **`acme-app`** (Next.js + Supabase with existing email/password login,
+so OAuth is a believable addition exercising the symbol graph).
+
+---
+
+## 6. Scope — in / out / non-goals
+
+### In scope (MVP — "v1, demo-ready, production-grade")
+
+- Repo onboarding for **TypeScript/JS first** (Python second). GitHub OAuth or upload.
+- **Static repo index** (symbol / import / file↔symbol graphs) via the Python analysis service.
+- **Planner agent** → Nodes + summaries at any of G1–G4.
+- **Dependency-Inference Engine** → grounded Edges, Branches, `overlap_score`,
+  **false-independence detection**, user-ratifiable.
+- **Grounded analysis** per node (P2) with symbol citations + confidence signal.
+- **Generative UI**: React Flow canvas, node inspector with the five sections, per-granularity
+  layouts (G1–G4), and **≥4 change-type widgets** (schema-diff, api-contract,
+  component-preview, call-graph-impact).
+- **Real-time iteration** panel with live re-plan.
+- **Parallel execution**: run node/branch/selection; per-branch git worktrees; conflict
+  detection; streamed diffs & logs; **integration node** for merge.
+- **Delegation**: export subtree → portable spec; share with role (viewer/runner/editor).
+- **Multi-tenant**: orgs, projects, auth, RLS, presence.
+- **Eval harness** for plan correctness & dependency accuracy.
+
+### Explicitly out of scope (v1)
+
+- Full autonomous "build everything unattended" with no human ratification — Trellis always
+  shows a ratifiable plan first.
+- Languages beyond TS/JS + Python (architecture is language-pluggable; more land later).
+- A general IDE / editor surface (links to diffs & PRs; not replacing the editor).
+- On-prem / air-gapped deployment (cloud SaaS first).
+- A marketplace for delegated tasks / payments (delegation ships as sharing, not a labor market).
+- Mobile-native apps (responsive web only).
+
+### Non-goals / honesty guardrails (baked into scope)
+
+- **Never present an independence claim as a guarantee** — branches show *why* they're
+  independent (touch-sets) and flag overlap risk; the user ratifies.
+- **Every analysis claim is grounded** in cited symbols/files or labeled low-confidence.
+- **Granularity range is bounded by value** — G1 stays lightweight (no forced DAG ceremony);
+  G4 stays navigable (no 500-node wall). The engine refuses to pretend a fine-grained change
+  has a meaningful DAG.
+
+### Audience phasing
+
+- **Phase A — internal/dogfood:** our own engineers, lower trust/safety bar; validates the
+  dependency engine and parallelism on real repos.
+- **Phase B — design-partner customer-facing:** small set of external teams; hardened auth,
+  sandboxing, billing hooks, customer safety bar.
+- **Phase C — platform:** the plan-graph + delegation become an embeddable/reusable surface.
+
+---
+
+## 7. Success metrics (FIR and friends)
+
+**North star:** *parallel-merge-clean throughput* — plan-nodes dispatched in parallel on
+proven-independent branches that merge cleanly on first integration, per active project per week.
+
+The single most important number is **FIR**:
+
+| KPI | Definition | Target |
+|-----|------------|--------|
+| **False-Independence Rate (FIR)** ⭐ | Fraction of branch-pairs marked `independent` that actually conflict on real parallel execution | **≤ 1%** (v1); ≤ 0.3% (stretch) |
+| **Dependency precision** | Of asserted edges, fraction that are real | **≥ 0.92** |
+| **Dependency recall** | Of real dependencies, fraction found (recall favored — a missed edge = corrupt merge) | **≥ 0.95** |
+| **Parallel-merge-clean rate** | Parallel branches that integrate green, no human conflict resolution | **≥ 95%** |
+| **Drift-caught-before-merge** | Build-discovered new deps re-derived before a corrupt merge | **≥ 99%** |
+| **Parallel speedup (G3)** | Sequential wall-clock ÷ parallel wall-clock | **≥ 2.5×** median |
+| **Analysis thumbs-up rate** | Up-votes ÷ total votes on annotation claims | **≥ 80%** |
+| **Grounding rate** | Claims carrying a valid resolvable citation | **≥ 95%** |
+| **Hallucination rate** | Claims citing a non-existent/wrong symbol | **≤ 2%** |
+| **Time-to-first-plan (G2)** | Describe → first rendered plan | **< 30s** |
+| **Incremental re-plan latency (G2)** | Add-context → re-flowed plan | **< 8s** |
+
+Per-tier cost budgets (plan+analysis / full run incl. build): G1 ≤ $0.15/$0.50, G2 ≤
+$0.75/$3, G3 ≤ $4/$20, G4 ≤ $15/$100 (guard-capped). Instrumentation intent: **PostHog**
+(product + LLM cost), **OpenTelemetry** (latency / parallel-vs-sequential), and the **eval
+harness** (golden-repo CI gates). *(Instrumentation is planned; not yet wired in the as-built
+code.)*
+
+---
+
+## 8. System architecture
+
+Trellis is a **pnpm monorepo** of four runtime services plus two shared packages, over
+**Supabase Postgres** (durable truth) and **Redis** (ephemeral control plane).
+
+```mermaid
+flowchart TB
+  subgraph Client
+    CC["Claude Code<br/>/trellis slash cmd"]
+    Web["apps/web<br/>Next.js canvas (React Flow)"]
+  end
+
+  subgraph ControlPlane["apps/api — Fastify /v1 + MCP (stdio)"]
+    API["REST routes + services<br/>validate → persist → enqueue → return"]
+    MCP["MCP server<br/>trellis_plan / get_plan / status / run_branch"]
+  end
+
+  subgraph Workers["apps/workers — BullMQ (one process, 4 workers)"]
+    PB["plan-build"]
+    AN["analysis"]
+    NR["node-run"]
+    IN["integration"]
+  end
+
+  subgraph Analysis["services/analysis — Python FastAPI"]
+    PY["tree-sitter + networkx<br/>/index /resolve-touchset /overlap /callgraph-impact"]
+  end
+
+  Redis[("Redis<br/>BullMQ queues · locks · run streams")]
+  Supa[("Supabase<br/>Postgres + Auth + Realtime + Storage")]
+  Anthropic["Anthropic API<br/>Opus 4.8 / Sonnet 4.6"]
+  Repo["Git repo<br/>ephemeral worktrees"]
+
+  CC -->|MCP stdio| MCP
+  Web -->|HTTPS /v1| API
+  Web <-->|Realtime| Supa
+  Web -->|SSE run stream| API
+  API --> Redis
+  API --> Supa
+  MCP --> API
+  Redis <--> Workers
+  Workers --> Supa
+  Workers --> PY
+  Workers --> Anthropic
+  Workers --> Repo
+  PY --> Redis
+```
+
+**Boot philosophy of the API:** *validate → persist (service-role Supabase) → enqueue (BullMQ)
+→ return*. Long agent work runs in the separate workers process and streams back over a Redis
+Stream (SSE to the canvas) and Supabase Realtime (durable graph changes).
+
+**Durable vs ephemeral split (ADR-2):** Supabase = truth (plans, nodes, edges, branches,
+runs, annotations, delegations…); Redis = control plane (queues, distributed locks, live run
+log streams, presence, symbol-graph cache).
+
+---
+
+## 9. Tech stack
+
+| Layer | Technology | Used for |
+|-------|------------|----------|
+| **Web** | Next.js 15 (App Router), React 18, TypeScript | The generative-UI canvas app |
+| | `@xyflow/react` (React Flow) 12 | Interactive DAG rendering |
+| | `dagre` | DAG auto-layout |
+| | TanStack Query 5 | Server state / data fetching |
+| | Zustand 5 | Ephemeral client/UI state (selection, run overlay) |
+| | Tailwind CSS 3 (+ CSS-variable tokens) | Styling, theming, dark mode |
+| | `@supabase/supabase-js` | Browser auth + Realtime subscriptions |
+| | `zod` | Widget/spec validation at the render boundary |
+| **API** | Fastify 5 + `@fastify/cors` | Orchestration REST API (`/v1`) |
+| | `jose` | Supabase JWT (HS256) verification |
+| | BullMQ 5 + `ioredis` 5 | Durable job queues + Redis Stream tail (SSE) |
+| | `@modelcontextprotocol/sdk` | MCP server (the `/trellis` launcher) |
+| **Workers** | Node + BullMQ | planner, analysis, node-run, integration workers |
+| | `@anthropic-ai/sdk` | Tool-forced JSON agent calls |
+| | `simple-git` | Repo clone, git worktrees, diffs |
+| **Analysis** | Python ≥3.11, FastAPI + uvicorn | Static dependency analysis microservice |
+| | `tree-sitter` (+ TS/JS grammars) | Parse repos → symbols/imports/calls/types |
+| | `networkx` | Symbol/import/call/type graphs + DAG algorithms |
+| | `pydantic` / `pydantic-settings` | Wire models + settings |
+| | `redis` (optional) | 24h symbol-graph cache mirror |
+| **Data** | Supabase Postgres | Durable domain entities, Auth, Realtime, Storage |
+| | Redis 7 (docker-compose) | Queues, locks, streams, cache |
+| **Models** | **Claude Opus 4.8** | Planner + analysis/annotation + replan reasoning |
+| | **Claude Sonnet 4.6** | The build runner (Claude Code) |
+| **Shared** | `zod` (TS) ↔ `pydantic` (Py) | The cross-service contracts (single source of truth) |
+
+---
+
+## 10. Monorepo layout (file-by-file)
+
+```
+google-genui/
+├── apps/
+│   ├── web/        Next.js generative-UI canvas
+│   ├── api/        Fastify orchestration REST API (/v1) + MCP launcher
+│   └── workers/    BullMQ workers: planner, analysis, node-run, integration
+├── packages/
+│   ├── shared/     @trellis/shared — zod schemas + TS types (the contracts)
+│   └── db/         @trellis/db — Postgres schema/migrations + admin client
+├── services/
+│   └── analysis/   Python FastAPI dependency-analysis service
+├── plan/           Canonical product/architecture design docs (728 KB)
+├── docker-compose.yml   Redis 7 (Supabase runs separately via CLI)
+├── pnpm-workspace.yaml  workspaces: apps/* + packages/*
+├── tsconfig.base.json   shared TS config + path aliases
+├── .env.example         documented env template (the only tracked env file)
+└── README.md            build quickstart
+```
+
+> **As-built note:** `plan/05-implementation/repo-structure.md` envisioned extra packages
+> (`ui`, `agent-core`, `git-worktree`). In the real repo those are folded into `apps/web`
+> (design system in `lib/` + `components/ui/`) and `apps/workers` (`runners/`, `worktree.ts`).
+> Only `packages/shared` and `packages/db` exist as standalone packages.
+
+### `apps/api/src/` — Fastify orchestration API (`@trellis/api`)
+
+| File | Responsibility |
+|------|----------------|
+| `index.ts` | `buildServer()` factory; CORS; global error + not-found handlers; registers all routes under prefix `/v1`; `start()` listens on `API_PORT` (default 8080); graceful shutdown closes queues. Auto-starts only when run directly (robust `fileURLToPath` main-module check). |
+| `env.ts` | Centralized env accessor; `DEV_IDENTITY` constant; lazy-required secrets. |
+| `auth.ts` | `authPreHandler` — verifies Supabase JWT (HS256 via `jose`), attaches `request.identity = {userId, orgId, email}`; dev bypass when `NODE_ENV=development` and no token. |
+| `errors.ts` | Stable error envelope `{error:{code,message,details?,retryable}}` + `ApiErrors.*` helpers (400/401/403/404/409/422/500/503). |
+| `queue.ts` | BullMQ `getQueue(name)` (shared ioredis), `createRedis()` (fresh conn for blocking SSE `XREAD`), `closeQueues()`. |
+| `supabase.ts` | Singleton service-role Supabase client (bypasses RLS). |
+| `mcp/server.ts` | MCP server over **stdio**; tools `trellis_plan`, `trellis_get_plan`, `trellis_status`, `trellis_run_branch`. Reuses the same services as REST. |
+| `routes/health.ts` | `GET /v1/health` (no auth). |
+| `routes/projects.ts` | `POST /v1/projects`, `GET /v1/projects`. |
+| `routes/plans.ts` | `POST /v1/plans`, `GET /v1/plans/:id`, `POST /v1/plans/:id/replan`, `/run`, `/delegate`. |
+| `routes/branches.ts` | `POST /v1/branches/:id/run`. |
+| `routes/nodes.ts` | `POST /v1/nodes/:id/feedback`. |
+| `routes/shares.ts` | `POST /v1/shares`. |
+| `routes/runs.ts` | `GET /v1/runs/:id/stream` (SSE relay of the Redis run-log stream). |
+| `services/*.ts` | Business logic: `plans` (create/getGraph/replan + `NotFoundError`), `runs` (dispatch/runSelection/runBranch), `projects`, `shares`, `delegations` (subtree serialize + Storage upload + paired share), `feedback`, `summary` (text renderers for MCP). |
+
+### `apps/workers/src/` — BullMQ workers (`@trellis/workers`)
+
+| File | Responsibility |
+|------|----------------|
+| `index.ts` | Boots **all four workers in one process** ("the BRAIN"); never-crash handlers; graceful shutdown. |
+| `env.ts` | All worker config (models, backends, worktree roots, concurrency) — almost everything has a default. |
+| `queue.ts` / `supabase.ts` / `log.ts` | Redis plumbing; service-role client + best-effort `recordEvent()`; tiny logger. |
+| `anthropic.ts` | `toolForcedJSON<T>()` — the core agent primitive: single forced `emit_*` tool, zod-validated, bounded repair retries (≤2). |
+| `agents/planner.ts` | Planner (Opus) → `emit_plan` (nodes + coarse predicted touch-sets + LayoutSpec); granularity prior + tier reconciliation. |
+| `agents/analysis.ts` | Analysis/annotation (Opus) → `emit_annotations` (5 sections + widget specs), grounded-or-flagged. |
+| `engine/dependency.ts` | The deterministic dependency engine (resolve → edges → branches → independence). |
+| `analysis.ts` | Typed best-effort HTTP client to the Python analysis service. |
+| `runners/index.ts` | `getRunner(backend)` → claude_code / native. |
+| `runners/claude-code.ts` | Spawns Claude Code headless (`-p`, `--output-format stream-json`, `--permission-mode`, `--max-turns`, `--model`); injects `CLAUDE.md` guardrails; parses stream-json into RunnerEvents. Falls back to native if the binary is missing. |
+| `runners/native.ts` | Graceful stub runner (writes a placeholder edit; used as fallback). |
+| `worktree.ts` | `ensureRepo()` (clone or **sample-repo fallback**), `createWorktree()`, `diffWorktree()`, `changedFiles()`, `detectTestCommand()`. |
+| `stream.ts` | `RunStream(runId)` → `XADD` to `stream:run:{id}` (tailed by the API SSE route). |
+| `repo-summary.ts` | Compact repo-context block for the planner. |
+| `workers/plan-build.ts` | Plan-build worker (queue `plan-build`). |
+| `workers/analysis.ts` | Per-node analysis worker (queue `analysis-jobs`). |
+| `workers/node-run.ts` | Node execution worker (queue `node-run`). |
+| `workers/integration.ts` | Branch reconvergence / merge worker (queue `integration`). |
+
+### `services/analysis/app/` — Python FastAPI
+
+| File | Responsibility |
+|------|----------------|
+| `main.py` | FastAPI app; endpoints `/health`, `/index`, `/symbol-graph`, `/resolve-touchset`, `/overlap`, `/callgraph-impact`. |
+| `models.py` | Pydantic wire models (canonical `touch_set` field names; `SharedSets` with `schema` alias). |
+| `parser.py` | tree-sitter parsing: discover files, extract symbols/imports/calls/type-refs (TS/JS). Never raises on a bad file. |
+| `graph.py` | `SymbolGraph` (networkx): symbol table, import/call/type graphs, name index; `build_graph()`; JSON (de)serialization. |
+| `overlap.py` | `compute_overlap()` — weighted file/symbol/signature/schema/config overlap; `hard_conflict` clamps to 1.0. |
+| `resolve.py` | `resolve_touchset()` (fuzzy predicted→real matching + blast-radius expansion) and `callgraph_impact()`. |
+| `cache.py` | Two-tier `GraphCache` (in-memory + optional Redis, 24h TTL). |
+| `settings.py` | pydantic-settings (port, tree-sitter languages, redis url, log level). |
+
+### `packages/`
+
+- **`shared/src/`** — `enums.ts`, `entities.ts`, `genui.ts`, `api.ts`, `runner.ts`, `keys.ts`,
+  `index.ts` (barrel). The cross-service contract (api ↔ workers ↔ web).
+- **`db/`** — `migrations/0001_init.sql` (full schema + enums + RLS), `src/index.ts`
+  (`createAdminClient()`), `src/migrate.ts` (forward-only migration runner over `pg`).
+
+---
+
+## 11. Data model (Postgres schema)
+
+Source of truth: `packages/db/migrations/0001_init.sql` (mirrors
+`plan/01-architecture/data-model.md`). Target: **Supabase Postgres** (uses `auth.users`,
+`auth.uid()`, `auth.jwt()`).
+
+### Entity relationships
+
+```mermaid
+erDiagram
+  organizations ||--o{ profiles : has
+  organizations ||--o{ projects : owns
+  projects ||--o{ plans : has
+  projects ||--o{ repo_index : indexed_as
+  plans ||--o{ plan_nodes : contains
+  plans ||--o{ plan_edges : contains
+  plans ||--o{ branches : partitions
+  plans ||--o{ plan_revisions : versioned_by
+  plans ||--o{ runs : executes
+  plans ||--o{ integration_nodes : reconverges
+  plans ||--o{ delegations : delegates
+  plans ||--o{ events : audited_by
+  plan_nodes ||--o| node_annotations : annotated_by
+  plan_nodes ||--o{ comments : discussed_in
+  plan_nodes ||--o{ feedback : rated_by
+  branches ||--o{ plan_nodes : groups
+```
+
+### Enums (Postgres types ⇄ `packages/shared/src/enums.ts`)
+
+| Enum | Values |
+|------|--------|
+| `granularity` | `g1_micro, g2_meso, g3_macro, g4_mega` |
+| `change_type` | `migration, api_contract, ui_component, logic, refactor, bugfix, config, infra, test, docs` |
+| `plan_status` | `draft, planning, ready, executing, partially_merged, merged, archived, failed` |
+| `node_status` | `pending, ready, running, built, merged, failed, blocked, skipped` |
+| `edge_type` | `depends_on, data_flow, sequence, soft_order` (hard = depends_on/data_flow/sequence; soft = soft_order) |
+| `branch_status` | `idle, ready, running, built, merged, conflicted, failed` |
+| `run_kind` | `plan, analysis, node_build, integration, replan` |
+| `run_status` | `queued, running, succeeded, failed, cancelled` |
+| `share_role` | `viewer < runner < editor` (cumulative; `role_rank` 1/2/3) |
+| `delegation_status` | `draft, sent, accepted, building, returned, merged, declined` |
+| `execution_backend` | `claude_code, native` |
+
+### Tables (key columns)
+
+| Table | Purpose & notable columns |
+|-------|---------------------------|
+| `organizations` | Tenant root: `id, name`. |
+| `profiles` | User: `id → auth.users`, `org_id`, `default_role` (default `editor`). |
+| `projects` | Connected repo: `org_id, name, repo_url, provider (default github), default_branch (main), languages[], execution_backend (default claude_code), created_by`. |
+| `repo_index` | Cached index per `{project, commit_sha}`: `symbol_graph_path, import_graph_path, file_symbol_map_path, stats jsonb`. |
+| `plans` | Unit of work: `project_id, title, prompt, granularity, status (default draft), base_commit, current_revision (1), layout_spec jsonb, created_by, created_at, updated_at`. |
+| `plan_revisions` | Version snapshot: `plan_id, revision, reason, diff jsonb`. Every re-plan writes one. |
+| `branches` | Parallelizable lane: `plan_id, label, node_ids uuid[], status (idle), assignee_user_id, worktree_path, independent_of uuid[]`. |
+| `plan_nodes` | The atom: `plan_id, revision, title, change_type, granularity, status (pending), summary, touch_set jsonb, position jsonb, branch_id, parent_node_id, worktree_ref, diff_artifact_path, confidence (0.5)`. |
+| `node_annotations` | 1:1 with node (PK = node_id): `revision, assumptions, analysis, benefits, notable_symbols, widget_specs (all jsonb), model, tokens, cost, generated_at`. |
+| `plan_edges` | Typed dependency: `plan_id, revision, from_node, to_node, type, rationale, evidence jsonb, overlap_score`. |
+| `runs` | Execution record: `plan_id, node_id, branch_id, kind, status (queued), agent, model, started_at, finished_at, tokens, cost, logs_stream_key, result jsonb, error`. `runs.id` = worker idempotency key. |
+| `integration_nodes` | Reconvergence: `plan_id, target_branches uuid[], status, conflict_report jsonb, merge_commit`. |
+| `delegations` | Subtree handoff: `plan_id, subtree_root_node, spec_path, assigned_to_user, assigned_to_email, role (runner), status (draft), base_commit, created_by`. |
+| `shares` | Access grant: `resource_type (plan|project), resource_id, principal_user, principal_email, role, created_by`. |
+| `comments` | Node discussion: `node_id, author, body, resolved`. |
+| `events` | Append-only audit + realtime fan-out: `plan_id, actor, type, payload jsonb`. |
+| `feedback` | P2 trust loop: `node_id, annotation_path, vote (up|down), reason, "user"`. |
+
+Indexes: `plan_nodes(plan_id,revision)`, `plan_edges(plan_id,revision)`, `runs(plan_id,status)`,
+`branches(plan_id)`, `delegations(plan_id,status)`, `events(plan_id,created_at)`.
+
+### Row-Level Security (defined, but bypassed by the service-role workers/api)
+
+RLS is **default-deny**; the migration defines helpers `auth_org()`, `role_rank()`, and
+`can_access_plan(plan, min_role)` which grants access when the caller is in the plan's org, OR
+has a `shares` grant ≥ min_role, OR has a `delegations` grant ≥ min_role. Policies: read =
+viewer, write = editor, run-insert = runner; child tables inherit from their parent plan.
+
+> **Important as-built nuance:** the API and workers use the **service-role** key, which
+> **bypasses RLS**. Authorization is therefore enforced in the **services layer** by scoping
+> every query to `identity.orgId` (and plan/project ids). Out-of-org access returns **404**
+> (not 403) to avoid leaking resource existence. RLS is the second line of defense for any
+> direct (anon-key) access — e.g. the browser's Supabase Realtime subscriptions.
+
+---
+
+## 12. Shared contracts (`@trellis/shared`)
+
+`packages/shared/src/index.ts` re-exports everything. These zod schemas are the **single
+contract** across api ↔ workers ↔ web, and they mirror the Postgres enums and the Python
+pydantic models.
+
+### `entities.ts` — domain objects
+
+- **`TouchSet`** — `{ predicted:{add,modify,delete: SymbolRef[]}, resolved?:{files, symbols,
+  signatures_changed, schema_keys, config_keys}, resolution_confidence? }`. `SymbolRef =
+  {kind, name, file?}`. The substrate of all dependency reasoning.
+- **`Project`, `Plan`, `PlanNode`, `PlanEdge`, `Branch`, `Run`, `Delegation`, `Share`** — match
+  the tables above.
+- **`EdgeEvidence`** — `{reason: symbol_dependency|file_overlap|data_flow|signature_change|
+  schema_dependency|sequence, shared[], from_provides[], to_consumes[], overlap_score}`.
+- **`NodeAnnotation`** — the five inspector sections:
+  - `assumptions[]` = `{text, grounded_refs[], confidence}`
+  - `analysis[]` (risk register) = `{kind: race_condition|failure_mode|edge_case|perf|security,
+    text, grounded_refs[], severity: low|medium|high, confidence}`
+  - `benefits[]` = `{text, grounded_refs[]}`
+  - `notable_symbols[]` = `{symbol, file, role, why_notable}`
+  - `widget_specs[]` = `WidgetSpec[]`
+- **`PlanGraph`** = `{plan, nodes[], edges[], branches[], annotations[]}` — the canonical
+  payload `GET /v1/plans/:id` returns and the canvas renders.
+
+### `genui.ts` — generative-UI contracts
+
+- **`CanvasKind`** = `checklist | compact_dag | swimlane_dag | hierarchical_map` (G1→G4).
+- **`LayoutSpec`** = `{tier, canvas, direction (LR|TB), grouping (by_module|by_milestone|null),
+  emphasis[], parallelism_ui (hidden|branch_buttons|dispatch_parallel|assign_clusters),
+  delegation_ui (share_diff|per_branch|per_lane|assign_clusters), semantic_zoom,
+  default_inspector_tab (changes|contract|assumptions|analysis)}`. The planner emits one per plan.
+- **`WidgetKind`** = MVP: `schema_diff, api_contract, component_preview, call_graph_impact`;
+  phase-2: `key_diff, test_linkage, resource_diagram, markdown, checklist`.
+- **`WidgetSpec`** = `{widget, version, props (record), grounding[], fallback_text?}`. The
+  analysis agent emits these per node; the client validates them at the registry boundary
+  before rendering (never raw model HTML).
+
+### `api.ts` — REST DTOs
+
+`CreatePlanRequest`, `ReplanRequest`, `RunSelectionRequest`, `DelegateRequest`,
+`ShareRequest`, `ApiError`. The API validates inbound bodies against these.
+
+### `runner.ts` — the execution contract
+
+- **`WorkOrder`** — what a runner receives: `{run_id, node_id, plan_id, revision, base_commit,
+  worktree_path, goal, touch_set:{allowed_files, allowed_symbols, signatures}, assumptions[],
+  risks[], acceptance:{tests[],commands[]}, policy:{network, fs_scope:"worktree", max_turns,
+  wallclock_s}}`. The `touch_set` is the **guardrail** from the dependency engine.
+- **`RunnerResult`** — `{run_id, status, files_touched[], drift[], diff_artifact, tokens, cost,
+  summary}`.
+- **`RunnerEvent`** — `{type: text|tool_call|file_edit|token_usage|error|status, at, data}`.
+- **`AgentRunner`** interface — `{id, start(order, io), cancel(runId)}`. Claude Code is the v1
+  runner; native is the fallback. **Orchestration owns safety** (worktree isolation, drift
+  audit, test gate); the runner only writes code in the worktree.
+
+### `keys.ts` — Redis keys & queue names
+
+- **`QUEUES`** = `{planBuild:"plan-build", nodeRun:"node-run", analysis:"analysis-jobs",
+  integration:"integration", replan:"replan"}`. ⚠️ Note the analysis queue's literal name is
+  **`analysis-jobs`**. (BullMQ names must not contain `:`.)
+- **`keys`** = `symbolGraph`, `touchSet`, `lockPlan`, `lockBranch`, `lockNode`, `lockFile`,
+  `runStream(runId)="stream:run:{id}"`, `presence`.
+
+---
+
+## 13. The orchestration API (`apps/api`)
+
+**Fastify 5**, ESM, all routes under prefix **`/v1`**. Boots via `buildServer()`; auto-starts
+only when run directly (so the MCP server can import it without binding the HTTP listener).
+
+### Endpoint reference
+
+| Method + path | Auth | Body / params | Returns | Service |
+|---------------|:----:|---------------|---------|---------|
+| `GET /v1/health` | — | — | `{status:"ok", time}` | — |
+| `POST /v1/projects` | ✅ | `{name, repo_url, provider?, default_branch?, languages?}` | `201` project | `createProject` |
+| `GET /v1/projects` | ✅ | — | `{data: Project[]}` | `listProjects` |
+| `POST /v1/plans` | ✅ | `CreatePlanRequest {project_id, prompt, granularity?}` | `201 {plan_id}` | `createPlan` → enqueue `plan-build` |
+| `GET /v1/plans/:id` | ✅ | `id` | `200 PlanGraph` | `getPlanGraph` |
+| `POST /v1/plans/:id/replan` | ✅ | `ReplanRequest {context}` | `202 {revision}` | `replan` → enqueue `replan` |
+| `POST /v1/plans/:id/run` | ✅ | `RunSelectionRequest {node_ids?, branch_ids?}` | `202 {runs:[{run_id,node_id}]}` | `runSelection` → enqueue `node-run` each |
+| `POST /v1/plans/:id/delegate` | ✅ | `DelegateRequest {subtree_root_node, assigned_to_email?/user?, role}` | `201` delegation | `delegateSubtree` |
+| `POST /v1/branches/:id/run` | ✅ | `id` | `202 {runs}` | `runBranch` |
+| `POST /v1/nodes/:id/feedback` | ✅ | `{vote: up|down, reason?, annotation_path?}` | `201` feedback | `createFeedback` |
+| `POST /v1/shares` | ✅ | `ShareRequest {resource_type, resource_id, principal_email?/user?, role}` | `201` share | `createShare` |
+| `GET /v1/runs/:id/stream` | ✅ | `id`, `?from=` | **SSE** stream of run-log events | tails `stream:run:{id}` |
+
+Validation failures → **422** `validation_failed` with `details:[{path,issue}]`. Service
+`NotFoundError` → **404** `not_found`. Unhandled → **500** `internal`.
+
+### Queues enqueued by the API
+
+| Queue | Job | Payload | Job id |
+|-------|-----|---------|--------|
+| `plan-build` | `"plan-build"` | `{plan_id}` | `plan-build-{id}` |
+| `node-run` | `"node-run"` | `{node_id, run_id, plan_id}` | `node-run-{runId}` |
+| `replan` | `"replan"` | `{plan_id, context, target_revision}` | — |
+
+(Deterministic job ids provide idempotency/dedup. Run logs flow over a separate **Redis
+Stream** `stream:run:{id}`, not BullMQ.)
+
+### MCP server (`apps/api/src/mcp/server.ts`)
+
+Exposes Trellis to external coding agents (Claude Code's `/trellis`). Transport = **stdio**;
+server name `trellis`. Tools:
+
+| Tool | Input | Behavior |
+|------|-------|----------|
+| `trellis_plan` | `{prompt, project_id?}` | Creates a plan; returns `plan_id` + canvas URL `${APP_URL}/p/{id}`. |
+| `trellis_get_plan` | `{plan_id}` | `renderPlanSummary` — tiers/counts/branches/top risks as text. |
+| `trellis_status` | `{plan_id}` | `renderStatusSummary` — per-status counts + running node titles. |
+| `trellis_run_branch` | `{branch_id}` | Dispatches a branch; lists each node→run mapping. |
+
+> MCP token auth (`TRELLIS_MCP_TOKEN_SECRET`) is currently a stub: in non-dev it's "touched"
+> to fail-fast, but always binds to `DEV_IDENTITY`. Real token→profile mapping is a documented
+> extension point.
+
+---
+
+## 14. The workers (`apps/workers`)
+
+One Node process boots **all four BullMQ workers** ("the BRAIN"). Concurrency: plan-build **2**,
+analysis **4**, node-run **`MAX_CONCURRENT_BRANCHES`** (default 4), integration **1**. Workers
+generally **do not rethrow** on LLM/schema failures (they mark the row failed + record an
+event) to avoid BullMQ retry-storms.
+
+### Worker: `plan-build` (queue `plan-build`)
+
+```mermaid
+sequenceDiagram
+  participant API
+  participant Q as BullMQ
+  participant W as plan-build worker
+  participant Repo as Git/worktree
+  participant PY as Analysis service
+  participant AI as Anthropic (Opus)
+  participant DB as Supabase
+
+  API->>Q: enqueue plan-build {plan_id}
+  Q->>W: job
+  W->>DB: plans.status = planning; insert plan run (running)
+  W->>Repo: ensureRepo() (clone or sample)
+  W->>PY: POST /index (best-effort)
+  W->>W: buildRepoSummary()
+  W->>AI: runPlanner() → emit_plan (nodes + LayoutSpec)
+  loop per node
+    W->>PY: resolveNode() /resolve-touchset (or TS fallback)
+  end
+  W->>W: deriveDependencies() (edges + branches + independence)
+  W->>DB: insert branches → plan_nodes → plan_edges; status = ready; layout_spec
+  W->>DB: recordEvent(plan.ready)
+  loop per node
+    W->>Q: enqueue analysis-jobs {node_id}
+  end
+```
+
+### Worker: `analysis` (queue `analysis-jobs`)
+
+For each node: loads the node + plan, runs the analysis agent (Opus, `emit_annotations`),
+**upserts `node_annotations`** (1:1 on `node_id`) with the five sections + widget specs +
+model/tokens, records `node.annotated`. Best-effort — never blocks plan readiness or execution.
+
+### Worker: `node-run` (queue `node-run`)
+
+```mermaid
+sequenceDiagram
+  participant W as node-run worker
+  participant DB as Supabase
+  participant Repo as Git
+  participant R as Runner (Claude Code)
+  participant S as Redis stream
+
+  W->>DB: load node (skip if built/merged); load plan/project/annotations
+  W->>DB: insert run (node_build, running); node.status = running
+  W->>Repo: ensureRepo() → createWorktree() off base_commit
+  W->>DB: node.worktree_ref = wt.ref
+  W->>W: build WorkOrder (touch_set guardrail, assumptions, risks, acceptance)
+  W->>R: getRunner(backend).start(order)
+  R-->>S: stream events (text/tool_call/file_edit/status)
+  R-->>W: RunnerResult
+  W->>Repo: diffWorktree() + changedFiles()
+  W->>W: drift = touched files outside allowed_files
+  alt drift detected
+    W->>DB: recordEvent(node.drift); stream status:drift
+  end
+  W->>DB: node.status = built|blocked|failed; update run (tokens/cost/result)
+  W->>Repo: worktree.remove()  (GC)
+```
+
+Backend precedence: `job.execution_backend ?? project.execution_backend ?? env.executionBackend`.
+
+### Worker: `integration` (queue `integration`)
+
+Takes a **plan lock** (`SET lock:plan:{id} … NX`, 600s). Resolves target branches (explicit or
+all `built`). Creates a fresh integration worktree off base_commit, then **sequential
+`git merge --no-ff`** of each branch's built-node worktrees:
+
+- **First textual conflict** → `git merge --abort`; write `conflict_report` (kind `textual`);
+  branch `conflicted`; `plans.status = partially_merged`; **stop** (no auto-merge on red).
+- All clean → **test gate** (`detectTestCommand`, 5-min kill). Red gate → `conflict_report`
+  (kind `semantic`); `partially_merged`; stop. No test command → treated green (MVP).
+- Green → commit; `integration_nodes.status = merged` + `merge_commit`; branches `merged`;
+  built nodes `merged`; `plans.status = merged`; record `integration.merged`.
+
+Releases the lock only if the token still matches (compare-and-del).
+
+---
+
+## 15. The dependency-inference engine
+
+**The crux of the product** (`apps/workers/src/engine/dependency.ts`, grounded by
+`services/analysis`). Pure, deterministic. Governing rule: **asymmetric caution** — a false
+*dependency* only costs parallelism; a false *independence* costs a corrupted merge. When
+uncertain, assert a dependency.
+
+```mermaid
+flowchart TB
+  P["Planner: coarse predicted touch-sets<br/>{kind,name,file} triples"] --> S3
+  subgraph Engine["Dependency engine (deterministic)"]
+    S3["Stage 3 — resolveNode()<br/>predicted → real symbols + blast radius<br/>(Python /resolve-touchset, or TS fallback @0.4)"]
+    S4["Stage 4/5 — deriveEdge()<br/>provider/consumer · signature change ·<br/>/overlap · Jaccard fallback"]
+    S6["Stage 6 — partitionBranches()<br/>union-find over HARD edges →<br/>weakly-connected components"]
+    FI["false-independence check<br/>branchesDisjoint(file/symbol)"]
+    S3 --> S4 --> S6 --> FI
+  end
+  FI --> Out["Branches + independent_of[] + cited evidence"]
+```
+
+- **Stage 3 — resolve.** Each node's predicted touch-set is resolved against the Python symbol
+  graph. If the service is up: use `resolved` + `confidence`, fold the blast radius (callers,
+  signature call-sites, type refs) into a `consumes` set. If down: **`fallbackResolve`** treats
+  predicted files/symbols as resolved at confidence **0.4**. `provides` = symbols the node adds.
+- **Stage 4/5 — edges.** For each ordered pair A→B (meaning *B depends on A*), in priority:
+  1. **Provider/consumer**: `A.provides ∩ (B.symbols ∪ B.consumes)` → hard `depends_on`
+     (reason `symbol_dependency`, overlap 1.0).
+  2. **Signature change**: `A.signatures_changed ∩ B.consumes` → hard `data_flow` (reason
+     `signature_change`, overlap 0.9).
+  3. **Analysis `/overlap`**: shared files/symbols → soft `soft_order`; shared schema →
+     `sequence`/`schema_dependency`; shared config → soft. Uses `overlap_score`.
+  4. **TS fallback overlap** (no service): set intersection → soft `soft_order`, score =
+     **Jaccard** of file sets.
+- **Stage 6 — branches.** **Union-find over HARD edges only** → weakly-connected components =
+  branches. `independent_of[]`: for each ordered branch pair, `branchesDisjoint` checks no node
+  in A shares any touched file/symbol with any node in B.
+- **`coarse_order`** planner hints become `soft_order` edges.
+
+### The Python side that *decides* overlap
+
+`services/analysis/app/overlap.py` `compute_overlap()` weights file/symbol (1.0), signature
+(0.9), schema (0.9), config (0.7). **`hard_conflict = any shared file or symbol`** → score
+clamped to **1.0** regardless of other dimensions. This is exactly what the engine reads to
+decide that same-file/symbol nodes are **not** independent — the asymmetric-caution principle
+encoded twice (in `overlap.py` and `dependency.ts`).
+
+---
+
+## 16. The Python analysis service (`services/analysis`)
+
+Stateless FastAPI microservice (`uvicorn app.main:app --port 8000`). Deps: fastapi, uvicorn,
+pydantic, tree-sitter (+ TS/JS grammars), networkx, redis (optional).
+
+### Endpoints
+
+| Method + path | Purpose |
+|---------------|---------|
+| `GET /health` | Liveness `{ok:true}`. |
+| `POST /index` | Discover files → `parse_file` each → `build_graph` → cache. Returns `{index_id, stats}`. Index id = `idx_<sha1(project:commit)[:16]>`. |
+| `GET /symbol-graph` | Returns symbols/imports/calls/types + stats for `{project, commit}`. |
+| `POST /resolve-touchset` | Predicted → resolved touch-set + blast radius + confidence + new symbols. |
+| `POST /overlap` | `{overlap_score, shared, hard_conflict}` between two resolved touch-sets. |
+| `POST /callgraph-impact` | `{affected_symbols, affected_files, root}` for a symbol (signature = transitive callers, body = direct). |
+
+### Internals
+
+- **`parser.py`** — tree-sitter. `EXT_LANGUAGE` maps `.ts/.tsx/.js/.jsx…` → grammars. Extracts
+  functions, classes, interfaces, types, enums, variables, exports; ES imports + CommonJS
+  `require`; call expressions (with enclosing-symbol attribution) and type references. **Never
+  raises on a single bad file** — it's skipped and counted (`stats.skipped_files`). Skips
+  `.d.ts`; prunes `node_modules`, `.git`, `dist`, `build`, etc.
+- **`graph.py`** — `SymbolGraph` over networkx: symbol table, `import_graph` (file→file),
+  `call_graph` (caller→callee), `type_graph`, `name_index`. `build_graph()` resolves callees
+  (same-file → imported → unique global) and types. Fully JSON-serializable for the cache.
+- **`resolve.py`** — fuzzy `_best_match` (name similarity via difflib 0.55 + file 0.30 + kind
+  0.15; threshold 0.55, below → "new symbol"). Blast-radius expansion: `modify`→direct callers;
+  `change_signature`/`delete`→all call sites are hard deps; `modify(type)`→type referrers.
+- **`overlap.py`** — see §15.
+- **`cache.py`** — in-memory dict + optional Redis mirror (`cache:symbolgraph:{project}:{commit}`,
+  24h TTL). All Redis errors swallowed (best-effort accelerator).
+
+---
+
+## 17. The agent system (models, prompts, tool-forced JSON)
+
+| Agent | Job | Model | Tool |
+|-------|-----|-------|------|
+| **Planner** | `prompt + repo summary` → `Nodes[]` (change_type, summary, coarse predicted touch_set) + `LayoutSpec` | **Opus 4.8** | `emit_plan` |
+| **Dependency engine** | *(deterministic, not an LLM)* resolve → edges → branches → independence | — | — |
+| **Analysis / annotation** | per node → 5 sections + `WidgetSpec[]`, every claim grounded | **Opus 4.8** | `emit_annotations` |
+| **Builder** | execute one node on an isolated worktree → diff/tests/tokens/cost | **Sonnet 4.6** (via Claude Code) | — |
+| **Integration** | merge reconverging branches + test gate | (deterministic git + test) | — |
+| **Replan / drift** | re-derive the plan on new context or build drift → new revision | **Opus 4.8** | *(planned; `replan` queue has no worker yet)* |
+
+### The core primitive: `toolForcedJSON<T>()`
+
+Every LLM agent uses exactly one forced terminal tool (`emit_*`):
+`client.messages.create({model, tools:[{name, input_schema}], tool_choice:{type:"tool",
+name}})`. The result is **zod-validated**; on a missing tool-call or validation failure it does
+**bounded repair** (≤2 retries) quoting the exact validator error back to the model, then throws
+if exhausted. This is how the system gets reliable structured output from the models.
+
+### Grounding enforcement (P2)
+
+The analysis agent is told to **ground every claim** (≥1 `grounded_refs` to a real `file#symbol`
+in the touch-set/blast-radius, else confidence < 0.5). After the call, TS code **re-checks**:
+any assumption/risk with confidence ≥ 0.5 but unresolved refs is **demoted to 0.4**. Grounded
+high-severity risks are never silenced. A default widget is injected if the model emits none
+(keyed by `change_type` via `WIDGET_FOR_CHANGE_TYPE`).
+
+---
+
+## 18. Execution, worktrees, drift & integration
+
+### Isolation model
+
+- **One git worktree per node** (`createWorktree()` off `base_commit`, branch `trellis/<id>`).
+  Parallel builds physically cannot collide — different directories. Orchestration owns the
+  merge.
+- **`ensureRepo()`** clones the repo (`--depth 50`, GitHub token injected for https) or, on any
+  failure (no URL, clone error), generates a tiny committed **sample repo** so the pipeline
+  always runs (degrade-never-crash).
+- Worktrees are **GC'd** after each node run (`git worktree remove --force` + `rm -rf`).
+
+### The Claude Code runner
+
+Spawns the `claude` binary headless in the worktree cwd:
+
+```
+claude -p "<prompt>" --output-format stream-json --verbose \
+  --permission-mode <acceptEdits> --max-turns <N> --model <claude-sonnet-4-6>
+```
+
+It injects a **`CLAUDE.md`** into the worktree with: the goal, the **touch-set** (allowed
+files/symbols/signatures — *edit ONLY these*), assumptions, risks, and acceptance commands.
+The stream-json is parsed into `RunnerEvent`s (`text`, `tool_call`, `file_edit`, `token_usage`,
+`status`) pushed to the run's Redis stream. A wall-clock guard (default 900s) SIGKILLs.
+**If the binary is missing or spawn fails → falls back to the `NativeRunner` stub.**
+
+### Drift detection
+
+After a run, orchestration (not the runner) diffs the worktree and computes **drift = files
+touched outside `allowed_files`** (excluding `CLAUDE.md`). Drift records a `node.drift` event
+and a `status:drift` stream event. *(Design intent: drift re-derives affected edges/branches and
+demotes a falsely-parallel branch to sequential before any corrupt merge — the safety story in
+motion. The detection + signalling is built; automated re-derivation is the planned next step.)*
+
+### Integration & merge
+
+Branches reconverge at an **integration node**: sequential `git merge --no-ff`, then the full
+test gate. **Nothing auto-merges on red** — a textual conflict or a red test writes a
+`conflict_report` (kind `textual`/`semantic`) and leaves the plan `partially_merged`.
+
+### Locks (Redis)
+
+`keys.lockPlan/lockBranch/lockNode/lockFile`. The integration worker uses `lock:plan:{id}`. The
+design also specifies `lock:file:{project}:{path}` as a parallel-safety backstop (serialize on
+contention with a visible reason) for the native runner.
+
+---
+
+## 19. The web frontend (`apps/web`)
+
+**Next.js 15 (App Router), React 18, TanStack Query (server state), Zustand (UI state),
+Tailwind, React Flow + dagre.** Core principle: the agent never writes UI HTML — it writes a
+validated spec (`LayoutSpec` + `WidgetSpec[]`), and a **trusted client registry** renders from a
+closed component set. **No `dangerouslySetInnerHTML` / eval anywhere.**
+
+### Routes
+
+- `/` (`app/page.tsx`) — home: hero, `<PromptBox>` (create a plan from a prompt), feature grid,
+  `<PlanList>` (recent plans).
+- `/p/[id]` (`app/p/[id]/page.tsx`) — `<CanvasPage>`: the generative canvas + inspector.
+- `app/layout.tsx` — fonts, no-flash dark-mode script, `<Providers>` (QueryClient).
+
+### Canvas (`components/canvas/`)
+
+- **`GraphCanvas`** — React Flow surface; custom `nodeTypes` (`planNode`, `superNode`) and
+  `edgeTypes` (`planEdge`); picks the canvas from `layout_spec.canvas`; positions via
+  `computeLayout()`. Injects the live run overlay into node data; `Background`, `Controls`,
+  `MiniMap` (G4), `SwimlaneBands` (G3).
+- **`PlanNodeView` / `SuperNodeView`** — node face is a pure function of `change_type` (icon +
+  accent), `node_status` (border/glow, pulse when running), `confidence`, `emphasis`, branch
+  tint + `∥` for independent branches, `⚠` false-independence flag, hover Run/Open, live
+  progress bar.
+- **`PlanEdgeView`** — typed edge with a **hover evidence popover** (reason, shared symbols,
+  `from_provides → to_consumes`, overlap score → "safe to parallelize" / "serialize"). No
+  evidence → honest "unverified — no engine evidence".
+- **`CanvasToolbar`** — spec-driven CTAs from `layout_spec.parallelism_ui` /
+  `delegation_ui`; soft-edge toggle; Add context; Share.
+- **`SelectionBanner`** — multi-select → `analyzeIndependence()` → "⚡ parallel-safe" or
+  "cannot parallelize — shared files".
+
+### Inspector (`components/inspector/`)
+
+- **`NodeInspector`** — right drawer; default tab from `layout_spec.default_inspector_tab`;
+  header (change-type badge, status, branch tint, confidence, false-independence banner);
+  action bar (**Run / Share / Delegate subtree / Add context**); live `RunLog`; the change-type
+  widget(s); the five section tabs.
+- **`Sections`** — the five grounded sections: `ChangesSection` (touch-set add/modify/delete +
+  resolved files + signatures + confidence), `AssumptionsSection`, `AnalysisSection`
+  (severity-sorted risks), `BenefitsSection`, `NotableSymbolsSection`. Each claim shows a
+  confidence meter, 👍/👎 feedback, and a citation (or low-confidence label).
+- **`RunLog`** — live streamed run viewer (progress %, tokens, rolling log tail).
+- **`ActionDialogs`** — `ShareDialog`, `DelegateDialog`, `AddContextDialog`.
+
+### Widgets (`components/widgets/`)
+
+`registry.tsx` is the **trusted closed registry**: `REGISTRY: Partial<Record<WidgetKind,
+{propsSchema (zod), Component, maxPropsBytes}>>`. Registered: `schema_diff` (64KB),
+`api_contract` (64KB), `component_preview` (64KB), `call_graph_impact` (128KB), `key_diff`
+(32KB). `renderWidget()` validates the envelope → looks up the widget → size-caps props →
+validates props → renders the trusted component, falling back to a `FallbackWidget` at every
+failure. **Never throws.**
+
+| Widget | change_type | Renders |
+|--------|-------------|---------|
+| `schema_diff` | migration | before/after table columns with per-row Δ + migration ordering |
+| `api_contract` | api_contract | method/path, request/response tables, breaking-change block |
+| `component_preview` | ui_component | skeleton structural preview (no execution) + prop/state tables |
+| `call_graph_impact` | logic/refactor | indented caller/callee tree by depth + blast-radius summary |
+| `key_diff` | config | before→after key table + consumer list |
+
+### State, data, realtime, design
+
+- **`lib/store.ts`** (Zustand) — selection, layout/density, and the **live run overlay**
+  (`runProgress[nodeId] = {status, progress, log[], tokens}`).
+- **`lib/hooks.ts`** (TanStack Query) — `usePlanList`, `usePlanGraph` (wires Supabase Realtime →
+  invalidation), `useRunNodes` (optimistic), `useReplan`, `useDelegate`, `useShare`,
+  `useFeedback`. All hooks **gracefully fall back to bundled fixtures** when the API/Supabase is
+  unconfigured.
+- **`lib/api.ts`** — typed `/v1` client; `subscribeRunStream()` opens an SSE `EventSource` on
+  `/v1/runs/:id/stream`.
+- **`lib/supabase.ts`** — browser client; `subscribePlanRealtime()` subscribes to
+  `postgres_changes` on `plan_nodes`, `runs`, `plan_edges`, `branches` (filtered by `plan_id`),
+  invalidating the plan query so the canvas re-flows.
+- **`lib/layout.ts` + `lib/dagre.ts`** — the per-canvas layout strategies (checklist /
+  compact_dag / swimlane / hierarchical).
+- **`lib/design.ts` + `components/ui/`** — the visual language (change-type/status/edge/severity
+  tokens, branch tints), primitives, overlay (Dialog/Sheet), and the **trust surface**
+  (Citation, GroundingChip, ClaimFeedback).
+- **`lib/fixtures.ts`** — four demo `PlanGraph`s (one per tier) so the entire UI renders
+  end-to-end with no backend.
+
+---
+
+## 20. The generative-UI system (two axes)
+
+This is the assessed centerpiece (P4). "Generative" here is **structured & validated**, not
+free-form HTML.
+
+```mermaid
+flowchart LR
+  subgraph AxisA["Axis A — granularity → canvas layout"]
+    A1[G1 → checklist]
+    A2[G2 → compact_dag]
+    A3[G3 → swimlane_dag]
+    A4[G4 → hierarchical_map]
+  end
+  subgraph AxisB["Axis B — change_type → node-body widget"]
+    B1[migration → schema_diff]
+    B2[api_contract → api_contract]
+    B3[ui_component → component_preview]
+    B4[logic/refactor → call_graph_impact]
+    B5[config → key_diff]
+  end
+  Planner -->|emits LayoutSpec| AxisA
+  Analysis -->|emits WidgetSpec per node| AxisB
+  AxisA --> Render["Trusted client registry<br/>(zod-validated, size-capped,<br/>no eval / no raw HTML)"]
+  AxisB --> Render
+```
+
+- **Axis A** — the **planner** emits a `LayoutSpec` (tier, canvas, direction, grouping,
+  parallelism_ui, delegation_ui, semantic_zoom, default_inspector_tab); the canvas renders the
+  matching layout strategy. Layout = `f(granularity × change_type × context)`.
+- **Axis B** — the **analysis agent** emits `WidgetSpec[]` per node; the client registry
+  validates and renders the trusted component for the node's change type.
+
+Trust & safety of generation: every spec is validated against zod schemas at the boundary;
+props are byte-capped per widget; any failure degrades to a `FallbackWidget` with sanitized
+plain text. Grounding is structurally guaranteed (every widget frame renders a `GroundingChip`),
+and confidence < 0.5 surfaces a low-confidence banner.
+
+---
+
+## 21. Collaboration & delegation
+
+### Sharing (low-ceremony)
+
+Three cumulative roles (`share_role`): **viewer ⊂ runner ⊂ editor**.
+
+| Role | Can read | Create `runs` | Mutate plan structure |
+|------|:--------:|:-------------:|:---------------------:|
+| viewer | ✅ | ✗ | ✗ |
+| runner | ✅ | ✅ | ✗ |
+| editor | ✅ | ✅ | ✅ |
+
+`POST /v1/shares` inserts a `shares` grant; RLS's `can_access_plan` honors it (for anon-key
+access). External guests are capped at the org's max external role (default `runner`).
+
+### Subtree delegation (high-ceremony — "GitHub for plans")
+
+`POST /v1/plans/:id/delegate` with `{subtree_root_node, assigned_to_email/user, role}`:
+
+1. **`subtreeNodeIds`** DFS from the root node over the edge adjacency → the subtree's node set.
+2. Insert a `delegations` row (status `sent`, with `base_commit`).
+3. Build a **portable spec** `{version, delegation_id, plan_id, subtree_root_node, base_commit,
+   granularity, nodes, edges, annotations, created_at}` and upload JSON to the Supabase Storage
+   **`specs`** bucket at `{planId}/{delegationId}.json`.
+4. Update `delegations.spec_path`.
+5. Insert a **paired `shares`** grant so the recipient can open the plan.
+
+The recipient opens the portable spec as a runnable mini-plan, builds it, and results merge back
+into the parent via the integration node. The portable spec also carries an **integration
+contract** (what the subtree requires from the parent and provides back) — the verifiable
+definition of done for merge-back.
+
+### Multi-user sync
+
+Live collaboration via **Supabase Realtime** (durable node/edge/run/branch changes) +
+**optimistic UI** with server reconciliation. Presence via `presence:plan:{id}` heartbeats
+(advisory, not a security boundary). CRDT/Yjs co-editing is explicitly deferred post-v1.
+
+---
+
+## 22. Realtime & streaming
+
+Two distinct live channels — don't conflate them:
+
+| Channel | Transport | Carries | Path |
+|---------|-----------|---------|------|
+| **Run progress** (transient) | **SSE** (`EventSource`) | per-run log lines, tool calls, file edits, status, tokens | worker `RunStream` → Redis `stream:run:{id}` → API `GET /v1/runs/:id/stream` → Zustand overlay |
+| **Graph changes** (durable) | **Supabase Realtime** (`postgres_changes`) | inserts/updates on `plan_nodes`, `runs`, `plan_edges`, `branches` | DB → browser channel `plan:{id}` → TanStack Query invalidation → canvas re-flow |
+
+The API's SSE route opens a **dedicated** ioredis connection per client and blocks on
+`XREAD BLOCK 0`, with a 15s heartbeat; it cleans up on disconnect.
+
+---
+
+## 23. Security & auth model
+
+- **User auth:** Supabase Auth (email+password / GitHub OAuth). The API verifies the Supabase
+  **JWT (HS256)** via `jose`, deriving `{userId=sub, orgId=org_id claim, email}`.
+- **Service-role for trusted servers:** api + workers use the Supabase **service-role** key,
+  which **bypasses RLS**. Therefore **authorization lives in the services layer** — every query
+  is scoped by `org_id`/plan/project ids. Out-of-org reads return **404** (no existence leak).
+- **RLS** (default-deny, with `can_access_plan`) is the boundary for any **anon-key** access —
+  notably the browser's Supabase Realtime subscriptions and direct reads.
+- **Dev bypass:** with `NODE_ENV=development` and no bearer token, both REST and MCP fall back
+  to a fixed `DEV_IDENTITY` (requires the seed org/profile rows).
+- **Secrets:** `.env` is git-ignored (only `.env.example`, a placeholder template, is tracked).
+  `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `ANTHROPIC_API_KEY`, `GITHUB_TOKEN`,
+  `TRELLIS_MCP_TOKEN_SECRET` are server/worker-only.
+- **Execution safety:** per-node worktree isolation; `WorkOrder.policy` declares
+  `network: deny-except-proxies`, `fs_scope: worktree`, `max_turns`, `wallclock_s`; post-run
+  drift audit; test gate; no auto-merge on red. *(Full sandboxing — egress deny, resource caps —
+  is the planned Phase-B hardening.)*
+
+---
+
+## 24. The "degrade-never-crash" philosophy
+
+A pervasive, symmetric design choice: every external dependency has a graceful fallback so a
+demo/dev run always completes.
+
+| If this is missing/unavailable… | …the system does this instead |
+|---------------------------------|--------------------------------|
+| Repo URL / clone fails | generates a tiny committed **sample repo** |
+| Python analysis service down | TS-side heuristics: predicted-as-resolved @ confidence 0.4; **Jaccard** file overlap |
+| Claude Code binary missing / spawn fails | falls back to the **NativeRunner** stub |
+| tree-sitter grammar missing / file unparseable | file skipped + counted (`skipped_files`); never crashes |
+| Redis (analysis cache) absent | in-memory cache only |
+| API / Supabase unconfigured (web) | every hook + PromptBox fall back to bundled **fixtures** (all four layouts + every widget render) |
+| LLM/schema failure in a worker | mark row failed + record event; **do not rethrow** (no BullMQ retry-storm) |
+
+---
+
+## 25. Environment variables reference
+
+`.env.example` is the documented template. Legend: `[PUBLIC]` browser-safe (`NEXT_PUBLIC_*`),
+`[SECRET]` server/worker only.
+
+| Var | Used by | Default | Notes |
+|-----|---------|---------|-------|
+| `NODE_ENV` | all | `development` | dev enables the auth bypass |
+| `LOG_LEVEL` | api/workers/analysis | `info` / `debug` | |
+| `NEXT_PUBLIC_APP_URL` | web/api/workers | `http://localhost:3000` | canvas deep-link base (local `.env` uses `3100`) |
+| `NEXT_PUBLIC_API_URL` | web | `http://localhost:8080` | (local `.env` uses `8180`) |
+| `API_PORT` | api | `8080` | (local `.env` uses `8180`) |
+| `MCP_SERVER_PORT` | api | `8090` | read but unused (MCP is stdio) |
+| `ANALYSIS_SERVICE_URL` | api/workers | `http://localhost:8000` | Python service |
+| `REDIS_URL` | api/workers/analysis | `redis://localhost:6379` | BullMQ + streams + cache |
+| `NEXT_PUBLIC_SUPABASE_URL` | all | — | Supabase project URL `[PUBLIC]` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | web | — | publishable, RLS-gated `[PUBLIC]` |
+| `SUPABASE_SERVICE_ROLE_KEY` | api/workers | — | **bypasses RLS** `[SECRET]` |
+| `SUPABASE_JWT_SECRET` | api | — | HS256 JWT verification `[SECRET]` |
+| `DATABASE_URL` | db migrate | — | direct Postgres for `pnpm db:migrate` |
+| `ANTHROPIC_API_KEY` | workers | `""` | `[SECRET]` |
+| `PLANNER_MODEL` | workers | `claude-opus-4-8` | |
+| `ANALYSIS_MODEL` | workers | `claude-opus-4-8` | |
+| `WIDGET_MODEL` | workers | `claude-sonnet-4-6` | configured but currently unused (widgets emitted in the Opus analysis call) |
+| `EXECUTION_BACKEND` | workers | `claude_code` | or `native` |
+| `CLAUDE_CODE_PATH` | workers | `/usr/local/bin/claude` | |
+| `CLAUDE_CODE_MODEL` | workers | `claude-sonnet-4-6` | |
+| `CLAUDE_CODE_PERMISSION_MODE` | workers | `acceptEdits` | |
+| `CLAUDE_CODE_MAX_TURNS` | workers | `40` | |
+| `MAX_CONCURRENT_BRANCHES` | workers | `4` | node-run concurrency |
+| `WORKTREE_ROOT` | workers | `/var/trellis/worktrees` | |
+| `REPO_CACHE_ROOT` | workers | `/var/trellis/repos` | |
+| `GITHUB_TOKEN` | workers | `""` | private-repo clone `[SECRET]` |
+| `TRELLIS_MCP_TOKEN_SECRET` | api | — | MCP device-link token `[SECRET]` (stub) |
+| `CORS_ALLOWED_ORIGINS` | api | `http://localhost:3000` | comma-separated |
+| `TREE_SITTER_LANGUAGES` | analysis | `typescript,javascript` | |
+
+---
+
+## 26. Local development & running
+
+Prerequisites: Node ≥ 20, pnpm ≥ 9, Docker (Redis), Supabase CLI, Python ≥ 3.11 + uv, and
+(optionally) the Claude Code CLI on PATH for the real build runner.
+
+```bash
+cp .env.example .env          # fill in keys (see comments in that file)
+pnpm install                  # install all TS workspaces
+docker compose up -d          # Redis (trellis-redis on :6379)
+supabase start                # local Postgres / Auth / Realtime / Storage
+pnpm db:migrate               # apply packages/db/migrations (needs DATABASE_URL)
+
+# Python analysis service (separate terminal):
+cd services/analysis && uv sync && uv run uvicorn app.main:app --reload --port 8000
+
+# Everything else (web + api + workers) in parallel:
+pnpm dev
+```
+
+Default URLs: **web** http://localhost:3000 · **api** http://localhost:8080 · **analysis**
+http://localhost:8000. *(This repo's local `.env` overrides web→3100 and api→8180.)*
+
+Root scripts: `pnpm dev` (`pnpm -r --parallel dev`), `build`, `typecheck`, `lint`,
+`db:migrate`, `services:up` / `services:down`. The API also has a `mcp` script
+(`tsx src/mcp/server.ts`) to run the MCP launcher.
+
+---
+
+## 27. Build status — as-built vs planned
+
+The `plan/` docs describe the **full product vision**; the master TODO
+(`plan/05-implementation/todo-master.md`) lists every epic with checkboxes still unchecked and a
+health snapshot of `TODO` — **that planning artifact was not kept in sync with the code.** The
+actual repo already contains a working MVP of the core spine. Here is the honest as-built status:
+
+| Area | Status | Notes |
+|------|:------:|-------|
+| Monorepo + shared contracts + DB schema/RLS | ✅ built | `packages/shared`, `packages/db/migrations/0001_init.sql` |
+| Fastify `/v1` API + zod validation + error model | ✅ built | all routes in §13 implemented |
+| MCP server (`/trellis` tools) | ✅ built | stdio; token auth is a stub (binds DEV_IDENTITY) |
+| BullMQ workers (plan-build, analysis, node-run, integration) | ✅ built | one process; see §14 |
+| Planner agent (Opus) + granularity detection | ✅ built | `agents/planner.ts` |
+| Analysis agent (Opus) + grounded-or-flagged | ✅ built | `agents/analysis.ts` |
+| Dependency engine (resolve→edges→branches→independence) | ✅ built | `engine/dependency.ts` |
+| Python analysis service (index/resolve/overlap/callgraph) | ✅ built | tree-sitter TS/JS + networkx |
+| Claude Code runner + worktrees + drift detection | ✅ built | native fallback runner too |
+| Integration/merge worker (no auto-merge on red) | ✅ built | textual + semantic conflict reports |
+| Web: home, canvas (G1–G4 layouts), inspector, 5 widgets | ✅ built | React Flow + dagre; fixtures fallback |
+| Realtime: SSE run streams + Supabase Realtime | ✅ built | two channels (§22) |
+| Sharing + subtree delegation (portable spec) | ✅ built | `delegations` + Storage `specs` bucket |
+| **Replan worker** (the `replan` queue) | ⏳ partial | API enqueues; **no worker consumes it yet** (UI re-plan + queue exist) |
+| **Automated drift re-derivation** | ⏳ partial | drift *detected* + signalled; auto re-derive not wired |
+| MCP real token→profile auth | ⏳ stub | extension point |
+| Full sandboxing (egress deny, resource caps) | ❌ planned | Phase-B hardening |
+| Observability (PostHog + OTel) + eval harness/FIR gates | ❌ planned | instrumented in the metrics design, not in code |
+| Python-language grammar | ❌ planned | phase 2 |
+
+### Planned milestone roadmap (design intent)
+
+`M0` foundations → `M1` index & plan → **`M2` the crux: grounded dependencies (FIR gate)** →
+`M3` thin vertical slice (run one branch) → `M4` generative-UI core → `M5` realtime/iteration/
+drift → `M6` parallel-at-scale + integration + G3/G4 → `M7` collaboration & delegation → `M8`
+hardening & safety bar → `M9` platform/embeddable → `M10` end-to-end demo (D17). The protected
+critical path is **M2 → M3** (the dependency engine's FIR must be near-zero before parallel
+execution can be trusted).
+
+---
+
+## 28. End-to-end request lifecycles (flows A–D)
+
+**Flow A — Create a plan.** `POST /v1/plans` → insert `plans` (status `planning`) → enqueue
+`plan-build` → worker: clone/index repo, run planner (Opus), resolve touch-sets, derive
+edges/branches, persist nodes/edges/branches (status `ready`), enqueue one `analysis` job per
+node → analysis worker upserts `node_annotations`. The canvas (already open via Realtime) fills
+in live.
+
+**Flow B — Run nodes/branches.** `POST /v1/plans/:id/run` (or `/branches/:id/run`) → insert a
+`runs` row per node + enqueue `node-run` → worker creates a worktree, builds a `WorkOrder`, runs
+Claude Code, streams events to `stream:run:{id}`, audits drift, sets node `built|blocked|failed`.
+The browser tails the SSE stream into the run overlay. When branches are `built`, an
+`integration` job merges them behind the test gate.
+
+**Flow C — Re-plan (iterate).** `POST /v1/plans/:id/replan {context}` → compute next revision →
+enqueue `replan`. *(Design: a replan agent writes a new `plan_revisions` row and re-derives only
+the changed parts in < 8s. The queue + API + UI exist; the consuming worker is the pending
+piece.)*
+
+**Flow D — Delegate a subtree.** `POST /v1/plans/:id/delegate` → DFS the subtree → insert
+`delegations` → upload the portable spec to Storage `specs` → update `spec_path` → insert a
+paired `shares` grant. The recipient opens it as a runnable mini-plan; results merge back via the
+integration node.
+
+---
+
+## 29. Glossary
+
+- **Analysis (node section)** — the P2 grounded analysis of a node's risks (race conditions,
+  failure modes, edge cases, perf, security), each with severity, confidence, grounded refs.
+- **Analysis-annotation agent** — the Opus agent producing a node's Assumptions, Analysis,
+  Benefits, Notable symbols (grounded or flagged low-confidence).
+- **Analysis service** — the stateless Python/FastAPI service (tree-sitter + networkx) answering
+  `resolve-touchset` / `overlap` / `callgraph-impact`.
+- **Assumptions / Benefits / Notable variables (node sections)** — three of the five inspector
+  sections (grounded lists).
+- **Base commit (`base_commit`)** — the exact Git commit a plan (or portable spec) is reasoned
+  against; every touch-set/analysis claim is valid only relative to it.
+- **Blast radius** — the full set of symbols/files truly affected after the analysis service
+  expands a predicted touch-set (callers, signature call-sites, type refs, schema/config
+  consumers). Drives edge derivation.
+- **Branch** — a set of nodes runnable in isolation (a parallelizable lane); a weakly-connected,
+  overlap-free slice of the hard-edge subgraph. Carries `independent_of[]`.
+- **Builder agent** — the Sonnet agent (Claude Code) that generates a node's code on an isolated
+  worktree.
+- **Change type (`change_type`)** — the kind of a node's change; selects the change-type widget.
+- **Confidence** — a 0..1 signal on resolutions, edges, and analysis claims; low confidence
+  forces caution.
+- **Delegation** — a handoff of a plan subtree to another user/agent as a portable spec.
+- **Dependency-Inference Engine** — the crux subsystem (P1): resolve predicted touch-sets →
+  derive edges → score overlap → detect false independence → partition branches; grounded and
+  ratifiable.
+- **Drift** — divergence between a node's predicted touch-set and the actual files a build
+  touches; triggers re-derivation.
+- **Edge** — a typed dependency link (`depends_on|data_flow|sequence|soft_order`) carrying
+  evidence and an overlap_score.
+- **Evidence** — the symbols/files justifying an edge or an independence claim, shown in the UI.
+- **Events** — append-only audit + realtime fan-out table.
+- **False independence** — two branches the planner wanted parallel that actually conflict
+  (shared file/symbol/signature/schema/config). Detected aggressively, flagged with the
+  conflicting symbol cited. Measured by FIR.
+- **FIR (False-Independence Rate)** — the fraction of "independent" branch pairs that actually
+  conflict; the primary safety metric (near-zero target).
+- **Granularity tiers (G1–G4)** — the four sizes Trellis adapts to (micro/meso/macro/mega).
+- **Integration contract** — the part of a portable spec declaring what a delegated subtree
+  requires from / provides back to the parent.
+- **Integration node** — a node where branches reconverge; the merge agent merges + runs the
+  test gate (nothing auto-merges on red).
+- **LayoutSpec** — the validated spec of which layout to render for a plan; never free-form HTML.
+- **Node** — the atom of a plan: one coherent change with a change_type, summary,
+  predicted+resolved touch-set, annotations, and status.
+- **Node inspector** — the panel showing a node's five sections + action buttons.
+- **Overlap score (`overlap_score`)** — a 0..1 measure of how much two nodes' touch-sets collide;
+  0 ≈ safe to parallelize, >0 ≈ conflict risk.
+- **Plan** — the unit of work: a generative interactive dependency graph of nodes/edges/branches
+  for one request, fully versioned.
+- **Plan revision** — a versioned snapshot; every re-plan writes a new `plan_revisions` row.
+- **Portable spec (portable plan)** — the self-contained JSON exported from a subtree (nodes,
+  edges, frozen annotations, touch-sets, base commit, integration contract), stored in the
+  `specs` bucket. The "GitHub for plans" payload.
+- **Presence** — live "who is here" on a plan via `presence:plan:{id}`; advisory.
+- **Project** — a connected Git repository within an org; the parent of plans.
+- **Ratification** — the editor-only handshake confirming/adding/splitting dependency claims;
+  only ratified-or-high-confidence-independent branches are parallel-dispatched.
+- **Replan** — a re-derivation after added context or drift; a new revision in < ~8s for G2.
+- **Repo index** — the cached symbol/import/file↔symbol graph for a `{project, commit}`.
+- **Run** — an execution record (plan/analysis/node_build/integration/replan) with status,
+  model, tokens, cost, and a live logs stream key.
+- **Share / `share_role`** — a grant of access at viewer/runner/editor, enforced by RLS.
+- **Super-node** — a G4 cluster node that expands into a G3/G2 sub-DAG (semantic zoom).
+- **Touch-set (predicted/resolved)** — a node's footprint: predicted add/modify/delete from the
+  planner, and resolved real files/symbols/signatures/schema/config (+ blast radius) from the
+  analysis service.
+- **Tree-sitter** — the incremental parser the analysis service uses to extract
+  symbols/imports/references.
+- **WidgetSpec** — a validated spec for a change-type widget, rendered against the component
+  registry, never raw HTML.
+- **Worktree** — an ephemeral isolated git worktree per node/branch, giving conflict-free
+  parallel builds.
+
+---
+
+## 30. Appendix — principles, competitive landscape, open questions
+
+### Key design principles / ADRs
+
+- **ADR — LLMs propose, deterministic services decide.** The model never has final say on a
+  dependency (the safety core).
+- **ADR-2 — durable vs ephemeral split.** Supabase = truth; Redis = control plane.
+- **ADR-4 — grounding before generation.** Claims are derived against the real symbol graph
+  before any generative UI is layered on top.
+- **ADR-5 — no raw model HTML.** All generative UI renders from validated specs against a closed
+  component registry.
+- **Asymmetric caution.** A false dependency only costs parallelism; a false independence costs a
+  corrupted merge — so when uncertain, assert a dependency.
+- **Honesty constraints.** Independence is never presented as a guarantee; every analysis claim
+  is grounded or labeled low-confidence; granularity range is bounded by value.
+
+### Competitive positioning
+
+Trellis's differentiator is the **triad running end-to-end**: a *ratifiable* parallel dependency
+graph (not a linear plan) + per-context generative UI + subtree delegation. Linear agents
+(Copilot Workspace, Cursor agent, Devin, Claude Code) produce a plan then build; Trellis produces
+an **operable, parallelizable, delegable** plan. The economic claim is real wall-clock
+parallelism (≥ 2.5× on G3) plus delegation of the most expensive labor an org has.
+
+### Open questions (selected)
+
+- **OQ — the exact FIR target** is the lone remaining P0 design question (the metric the product
+  lives or dies on).
+- CRDT/Yjs co-editing vs realtime + optimistic UI (deferred to post-v1).
+- Whether agent-as-recipient delegation ships in MVP or Phase B.
+
+---
+
+*Generated as the master context document for the Trellis monorepo. Keep it in lockstep with
+`packages/shared` (the contracts), `packages/db/migrations` (the schema), and the canonical
+`plan/` docs. When code and plan disagree, the code is the as-built truth.*
