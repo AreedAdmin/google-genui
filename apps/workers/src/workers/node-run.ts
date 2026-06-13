@@ -27,6 +27,9 @@ const log = logger("node-run");
 
 interface NodeRunData {
   node_id: string;
+  /** Pre-created run id from the API's dispatchNode (so web + worker share it). */
+  run_id?: string;
+  plan_id?: string;
   /** Optional override; else project/plan execution_backend, else env default. */
   execution_backend?: string;
 }
@@ -74,11 +77,15 @@ async function handleNodeRun(job: Job<NodeRunData>): Promise<void> {
     .eq("node_id", node_id)
     .maybeSingle();
 
-  const runId = randomUUID();
+  // Reuse the run row the API's dispatchNode pre-created (the SAME id the web
+  // subscribes to) so the live console streams correctly; fall back to a fresh id
+  // for callers that don't pre-create one. upsert => update the queued row,
+  // never insert a duplicate.
+  const runId = job.data.run_id ?? randomUUID();
   const streamKey = keys.runStream(runId);
   const backend = job.data.execution_backend ?? project?.execution_backend ?? env.executionBackend;
 
-  await supabase.from("runs").insert({
+  await supabase.from("runs").upsert({
     id: runId,
     plan_id: node.plan_id,
     node_id,
@@ -172,7 +179,7 @@ async function handleNodeRun(job: Job<NodeRunData>): Promise<void> {
         finished_at: new Date().toISOString(),
         tokens: result.tokens,
         cost: result.cost,
-        result: { ...result, drift, diff_present: diff.length > 0, files_touched: touched },
+        result: { ...result, drift, diff_present: diff.length > 0, diff: diff.slice(0, 200_000), files_touched: touched },
       })
       .eq("id", runId);
 

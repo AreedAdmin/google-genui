@@ -13,6 +13,7 @@ import {
   NotableSymbolsSection,
 } from "./Sections";
 import { RunLog } from "./RunLog";
+import { NodeDiff } from "./NodeDiff";
 import { ShareDialog, DelegateDialog, AddContextDialog } from "./ActionDialogs";
 import { indexPlan, falseIndependenceRefs, shortRef } from "@/lib/utils";
 import { branchTint } from "@/lib/design";
@@ -164,7 +165,12 @@ export function NodeInspector({
                   ))}
                 </div>
                 <div className="p-3.5">
-                  {tab === "changes" && <ChangesSection node={node} onJump={onJump} />}
+                  {tab === "changes" && (
+                    <div className="space-y-3">
+                      <ChangesSection node={node} onJump={onJump} />
+                      <NodeDiff nodeId={node.id} status={node.status} />
+                    </div>
+                  )}
                   {tab === "assumptions" && <AssumptionsSection annotation={annotation} nodeId={node.id} onJump={onJump} />}
                   {tab === "analysis" && <AnalysisSection annotation={annotation} nodeId={node.id} onJump={onJump} />}
                   {tab === "benefits" && <BenefitsSection annotation={annotation} nodeId={node.id} onJump={onJump} />}

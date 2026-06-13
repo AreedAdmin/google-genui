@@ -128,9 +128,9 @@ export function PromptBox() {
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(prompt);
             }}
-            rows={2}
+            rows={6}
             placeholder="Describe what to build — Trellis turns it into a grounded plan you can run, branch, and delegate."
-            className="min-h-[52px] w-full resize-none bg-transparent text-[15px] text-fg placeholder:text-fg-muted focus-visible:outline-none"
+            className="min-h-[140px] max-h-[60vh] w-full resize-y bg-transparent text-[15px] text-fg placeholder:text-fg-muted focus-visible:outline-none"
             aria-label="Describe what to build"
             autoFocus
           />

@@ -1,7 +1,6 @@
 import type {
   PlanGraph,
   Plan,
-  Run,
   Share,
   Delegation,
   CreatePlanRequest,
@@ -122,6 +121,16 @@ export interface PlanListItem {
   updated_at: string;
 }
 
+/** The latest build run's captured diff for a node (inspector Changes tab). */
+export interface NodeDiff {
+  run_id: string;
+  status: string;
+  finished_at: string | null;
+  diff: string;
+  files_touched: string[];
+  drift: string[];
+}
+
 export const api = {
   // ---- projects + plans list (home) ----
   listProjects: async (token?: string) => {
@@ -139,6 +148,9 @@ export const api = {
 
   listGithubRepos: (token?: string) =>
     request<{ authenticated: boolean; repos: AccessibleRepo[] }>("/v1/github/repos", { token }),
+
+  getNodeDiff: (nodeId: string, token?: string) =>
+    request<NodeDiff | null>(`/v1/nodes/${nodeId}/diff`, { token }),
 
   listPlans: (token?: string) => request<PlanListItem[]>("/v1/plans", { token }),
 
@@ -158,7 +170,7 @@ export const api = {
 
   // ---- operate ----
   run: (id: string, body: RunSelectionRequest, token?: string) =>
-    request<{ runs: Run[] }>(`/v1/plans/${id}/run`, {
+    request<{ runs: Array<{ run_id: string; node_id: string }> }>(`/v1/plans/${id}/run`, {
       method: "POST",
       body,
       token,

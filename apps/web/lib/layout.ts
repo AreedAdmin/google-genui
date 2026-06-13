@@ -20,6 +20,8 @@ import type { PlanEdgeData } from "@/components/canvas/PlanEdgeView";
 const LANE_GAP = 40;
 const LANE_LABEL_W = 96;
 const CHECKLIST_GAP = 28;
+/** Clear strip reserved at the top of each lane for its (possibly wrapped) label. */
+const LANE_HEADER = 40;
 
 export interface LaneBand {
   key: string;
@@ -88,6 +90,11 @@ function buildNode(
 function buildEdges(graph: PlanGraph, hideSoftEdges: boolean): Edge<PlanEdgeData>[] {
   return graph.edges
     .filter((e) => !(hideSoftEdges && e.type === "soft_order"))
+    // Only render edges backed by REAL overlap (shared file / symbol / signature).
+    // overlap_score === 0 edges are the planner's ungrounded coarse-order hints —
+    // dropping them lets non-overlapping nodes fall into separate, independent
+    // subtrees (consistent with the engine's "overlap 0 = safe to parallelize").
+    .filter((e) => (e.overlap_score ?? 0) > 0)
     .map((e) => {
       const v = edgeVisual(e.type);
       return {
@@ -159,11 +166,14 @@ function layoutSwimlane(graph: PlanGraph, spec: LayoutSpec, hideSoftEdges: boole
     const positioned = layoutWithDagre(laneRaw, laneEdges, { direction: "LR", offsetX: LANE_LABEL_W });
 
     const bb = boundingBox(positioned);
-    const laneHeight = Math.max(NODE_H + 24, bb.maxY - bb.minY + 24);
-    // Re-base lane vertically into its band.
+    const contentHeight = Math.max(NODE_H, bb.maxY - bb.minY);
+    // Reserve a header strip at the top of each lane for its label so nodes
+    // never cover the lane name.
+    const laneHeight = LANE_HEADER + contentHeight + 16;
+    // Re-base lane vertically into its band, below the header strip.
     const shifted = positioned.map((node) => ({
       ...node,
-      position: { x: node.position.x, y: node.position.y - bb.minY + cursorY + 12 },
+      position: { x: node.position.x, y: node.position.y - bb.minY + cursorY + LANE_HEADER + 8 },
     })) as Node<PlanNodeData>[];
 
     allNodes.push(...shifted);

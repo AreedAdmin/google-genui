@@ -67,7 +67,7 @@ export function PlanEdgeView({
       <EdgeLabelRenderer>
         <div
           className="nodrag nopan pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2"
-          style={{ left: labelX, top: labelY }}
+          style={{ left: labelX, top: labelY, zIndex: hover ? 1000 : 1 }}
           onMouseEnter={() => setHover(true)}
           onMouseLeave={() => setHover(false)}
         >

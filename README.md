@@ -99,6 +99,22 @@ truth) and **Redis** (ephemeral control plane). It reads as a five-layer cake �
 
 ---
 
+## 🗄️ Data model
+
+The durable source of truth lives in **Supabase Postgres**. Everything hangs off
+`organizations → projects → plans`; a **plan** owns its `plan_nodes` (the atoms of work),
+`plan_edges` (typed dependencies), `branches` (parallel lanes), `runs` (executions), and
+`node_annotations` (the grounded analysis), while `delegations` and `shares` drive collaboration
+— with row-level security scoping every row to its org.
+
+<div align="center">
+
+<img src="assets/schema.png" alt="Trellis Postgres schema — entity-relationship diagram of plans, nodes, edges, branches, runs, annotations, delegations and shares" width="820" />
+
+</div>
+
+---
+
 <details>
 <summary><b>🚀 Quickstart &amp; repo layout</b></summary>
 

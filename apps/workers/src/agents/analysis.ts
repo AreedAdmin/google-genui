@@ -2,6 +2,7 @@ import { z } from "zod";
 import { NodeAnnotation, type TouchSet, type ChangeType, type WidgetKind } from "@trellis/shared";
 import { toolForcedJSON, type JsonSchema } from "../anthropic.js";
 import { analysisService } from "../analysis.js";
+import { webSearch } from "./linkup.js";
 import { env } from "../env.js";
 import { logger } from "../log.js";
 
@@ -154,6 +155,7 @@ const SYSTEM = `You are Trellis's Analysis/Annotation agent. For ONE plan node y
 Hard rules (analysis-annotation-agent.md):
 - Output ONLY via emit_annotations. No prose outside tool fields.
 - GROUND EVERY CLAIM. Each assumption / analysis(risk) / benefit must carry >=1 grounded_refs pointing at a real symbol ("file#symbol") or file that appears in this node's resolved touch-set or blast radius. A claim you cannot tie to a real ref MUST be emitted with confidence < 0.5 (it will render as low-confidence).
+- EXTERNAL WEB GROUNDING: you may be given an "External grounding (web:linkup)" block — external world knowledge (deprecations, current APIs, known pitfalls). Use it to SHARPEN your risks/benefits, but it is NOT repo-verified and must NOT be treated as repo grounding: grounded_refs must still cite a real repo symbol/file (cite the symbol the external fact applies to, e.g. the import or call site). When a claim rests mainly on web knowledge, name the source URL inline in its text and keep confidence honest — a claim with no repo ref renders low-confidence by design.
 - "analysis" is the RISK register: each entry needs a kind in {race_condition, failure_mode, edge_case, perf, security}, a severity in {low, medium, high}, and >=1 grounded_refs.
 - notable_symbols are the real symbols a reviewer must know (role: provider | consumer | mutated).
 - Do NOT restate the diff as a benefit. Do NOT fabricate symbols that aren't in the touch-set.
@@ -186,6 +188,15 @@ export async function runAnalysis(input: AnalysisInput): Promise<{ annotation: E
     }
   }
 
+  // External grounding (mandated-integrations.md §3.3): Linkup gives the analysis
+  // agent world knowledge (deprecations, current APIs, known pitfalls) to sharpen
+  // its risk/benefit analysis — labelled web:linkup and kept DISTINCT from
+  // repo-symbol grounding (P2). Best-effort: null with no LINKUP_API_KEY / on error.
+  const web = await webSearch(`${input.title}: ${input.summary} — current best practices, common pitfalls, and deprecations`);
+  const webBlock = web?.answer
+    ? `\n# External grounding (web:linkup — NOT repo-verified; use only to INFORM risks/benefits, never as repo grounding)\n${web.answer}\nSources: ${web.sources.slice(0, 5).map((s) => s.url).join(", ")}\n`
+    : "";
+
   const expectedWidget = WIDGET_FOR_CHANGE_TYPE[input.changeType];
   // Offer the primary widget plus the two universally-applicable secondaries, with shapes.
   const offered: WidgetKind[] = [...new Set<WidgetKind>([expectedWidget, "checklist", "markdown", "composed"])];
@@ -204,7 +215,7 @@ schema_keys: ${JSON.stringify(resolved?.schema_keys ?? [])}
 config_keys: ${JSON.stringify(resolved?.config_keys ?? [])}
 resolution_confidence: ${input.touchSet.resolution_confidence ?? "unknown"}
 ${blastSummary ? `\n# Blast radius\n${blastSummary}` : ""}
-
+${webBlock}
 Write the five sections grounded in the refs above. Then emit widget_specs: the PRIMARY for a "${input.changeType}" node is "${expectedWidget}", plus any secondary widget the touch-set supports (1-3 total). Match these prop shapes exactly:
 ${widgetHints}
 
