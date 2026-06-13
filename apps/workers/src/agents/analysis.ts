@@ -55,6 +55,7 @@ const EMIT_ANNOTATIONS_SCHEMA: JsonSchema = {
         properties: {
           text: { type: "string" },
           grounded_refs: { type: "array", items: { type: "string" } },
+          web_sources: { type: "array", items: { type: "string" } },
           confidence: { type: "number", minimum: 0, maximum: 1 },
         },
       },
@@ -69,6 +70,7 @@ const EMIT_ANNOTATIONS_SCHEMA: JsonSchema = {
           kind: { type: "string", enum: ["race_condition", "failure_mode", "edge_case", "perf", "security"] },
           text: { type: "string" },
           grounded_refs: { type: "array", items: { type: "string" } },
+          web_sources: { type: "array", items: { type: "string" } },
           severity: { type: "string", enum: ["low", "medium", "high"] },
           confidence: { type: "number", minimum: 0, maximum: 1 },
         },
@@ -83,6 +85,7 @@ const EMIT_ANNOTATIONS_SCHEMA: JsonSchema = {
         properties: {
           text: { type: "string" },
           grounded_refs: { type: "array", items: { type: "string" } },
+          web_sources: { type: "array", items: { type: "string" } },
         },
       },
     },
@@ -155,7 +158,7 @@ const SYSTEM = `You are Trellis's Analysis/Annotation agent. For ONE plan node y
 Hard rules (analysis-annotation-agent.md):
 - Output ONLY via emit_annotations. No prose outside tool fields.
 - GROUND EVERY CLAIM. Each assumption / analysis(risk) / benefit must carry >=1 grounded_refs pointing at a real symbol ("file#symbol") or file that appears in this node's resolved touch-set or blast radius. A claim you cannot tie to a real ref MUST be emitted with confidence < 0.5 (it will render as low-confidence).
-- EXTERNAL WEB GROUNDING: you have a web_search tool for external world knowledge (deprecations, current APIs, known pitfalls). Call it when it would SHARPEN your risks/benefits; skip it when the touch-set suffices. Its results are web:linkup and NOT repo-verified: grounded_refs must still cite a real repo symbol/file (cite the symbol the external fact applies to, e.g. the import or call site). When a claim rests mainly on web knowledge, name the source URL inline in its text and keep confidence honest — a claim with no repo ref renders low-confidence by design.
+- EXTERNAL WEB GROUNDING: you have a web_search tool for external world knowledge (deprecations, current APIs, known pitfalls). Call it when it would SHARPEN your risks/benefits; skip it when the touch-set suffices. Its results are web:linkup and NOT repo-verified. Tag them structurally: put any source URL(s) a claim drew on in that claim's "web_sources" array — NEVER in grounded_refs (which is repo symbols/files only). grounded_refs must still cite the real repo symbol the external fact applies to (e.g. the import/call site); a claim with web_sources but no repo grounded_ref renders low-confidence by design.
 - "analysis" is the RISK register: each entry needs a kind in {race_condition, failure_mode, edge_case, perf, security}, a severity in {low, medium, high}, and >=1 grounded_refs.
 - notable_symbols are the real symbols a reviewer must know (role: provider | consumer | mutated).
 - Do NOT restate the diff as a benefit. Do NOT fabricate symbols that aren't in the touch-set.

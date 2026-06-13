@@ -150,6 +150,10 @@ export async function getPlanGraph(
 
   const nodes = nodesRes.data ?? [];
   const nodeIds = nodes.map((n) => n.id);
+  // Branches aren't revision-scoped in the schema; keep only those referenced by
+  // THIS revision's nodes so a re-plan doesn't leak stale branches onto the canvas.
+  const liveBranchIds = new Set(nodes.map((n) => n.branch_id).filter(Boolean));
+  const branches = (branchesRes.data ?? []).filter((b) => liveBranchIds.has(b.id));
 
   let annotations: unknown[] = [];
   if (nodeIds.length > 0) {
@@ -167,7 +171,7 @@ export async function getPlanGraph(
     plan,
     nodes,
     edges: edgesRes.data ?? [],
-    branches: branchesRes.data ?? [],
+    branches,
     annotations,
   } as PlanGraph;
 }

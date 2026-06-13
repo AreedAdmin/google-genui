@@ -21,8 +21,8 @@ export interface DagreOptions {
   offsetY?: number;
 }
 
-export const NODE_W = 248;
-export const NODE_H = 130;
+export const NODE_W = 272;
+export const NODE_H = 132;
 
 export function layoutWithDagre(
   nodes: Node[],

@@ -3,7 +3,7 @@
 import * as React from "react";
 import type { PlanNode, NodeAnnotation } from "@trellis/shared";
 import { SeverityTag, ConfidenceMeter } from "@/components/ui/primitives";
-import { CitationRow, ClaimFeedback, LowConfidenceLabel } from "@/components/ui/trust";
+import { CitationRow, ClaimFeedback, LowConfidenceLabel, WebSourceRow } from "@/components/ui/trust";
 import { SEVERITY } from "@/lib/design";
 import { shortRef } from "@/lib/utils";
 import { Plus, Pencil, Trash2, FileSymlink } from "lucide-react";
@@ -92,6 +92,7 @@ export function ChangesSection({ node, onJump }: { node: PlanNode; onJump?: (r: 
 function ClaimRow({
   text,
   refs,
+  webSources,
   confidence,
   nodeId,
   path,
@@ -100,6 +101,7 @@ function ClaimRow({
 }: {
   text: string;
   refs: string[];
+  webSources?: string[];
   confidence?: number;
   nodeId: string;
   path: string;
@@ -120,6 +122,7 @@ function ClaimRow({
       <div className="mt-1 flex items-center gap-2 pl-0">
         {refs.length === 0 ? <LowConfidenceLabel /> : <CitationRow refs={refs} onJump={onJump} />}
       </div>
+      {webSources && webSources.length > 0 && <WebSourceRow urls={webSources} />}
     </li>
   );
 }
@@ -130,7 +133,7 @@ export function AssumptionsSection({ annotation, nodeId, onJump }: { annotation?
   return (
     <ul className="space-y-1.5">
       {items.map((a, i) => (
-        <ClaimRow key={i} text={a.text} refs={a.grounded_refs} confidence={a.confidence} nodeId={nodeId} path={`assumptions[${i}]`} onJump={onJump} />
+        <ClaimRow key={i} text={a.text} refs={a.grounded_refs} webSources={a.web_sources} confidence={a.confidence} nodeId={nodeId} path={`assumptions[${i}]`} onJump={onJump} />
       ))}
     </ul>
   );
@@ -150,6 +153,7 @@ export function AnalysisSection({ annotation, nodeId, onJump }: { annotation?: N
           key={i}
           text={a.text}
           refs={a.grounded_refs}
+          webSources={a.web_sources}
           confidence={a.confidence}
           nodeId={nodeId}
           path={`analysis[${i}]`}
@@ -172,7 +176,7 @@ export function BenefitsSection({ annotation, nodeId, onJump }: { annotation?: N
   return (
     <ul className="space-y-1.5">
       {items.map((b, i) => (
-        <ClaimRow key={i} text={b.text} refs={b.grounded_refs} nodeId={nodeId} path={`benefits[${i}]`} onJump={onJump} />
+        <ClaimRow key={i} text={b.text} refs={b.grounded_refs} webSources={b.web_sources} nodeId={nodeId} path={`benefits[${i}]`} onJump={onJump} />
       ))}
     </ul>
   );
