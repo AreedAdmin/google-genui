@@ -198,7 +198,7 @@ async function handlePlanBuild(job: Job<PlanBuildData>): Promise<void> {
     // Enqueue one analysis job per node.
     const analysisQueue = getQueue(QUEUES.analysis);
     for (const row of nodeRows) {
-      await analysisQueue.add("analyze", { node_id: row.id }, { jobId: `analysis:${row.id}:${revision}` });
+      await analysisQueue.add("analyze", { node_id: row.id }, { jobId: `analysis-${row.id}-${revision}` });
     }
     log.info(`plan ${plan_id} ready; enqueued ${nodeRows.length} analysis jobs`);
   } catch (err) {

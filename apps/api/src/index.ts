@@ -10,6 +10,7 @@ import { branchRoutes } from "./routes/branches.js";
 import { nodeRoutes } from "./routes/nodes.js";
 import { shareRoutes } from "./routes/shares.js";
 import { runRoutes } from "./routes/runs.js";
+import { fileURLToPath } from "node:url";
 
 /**
  * Fastify orchestration API. Validates -> persists (Supabase service role) ->
@@ -81,7 +82,8 @@ async function start() {
 }
 
 // Only auto-start when run directly (not when imported, e.g. by the MCP server).
-const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
+// Compare decoded paths so it works under tsx and when the repo path has spaces.
+const isMain = !!process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) {
   void start();
 }

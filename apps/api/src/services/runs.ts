@@ -42,7 +42,7 @@ async function dispatchNode(
   await getQueue(QUEUES.nodeRun).add(
     "node-run",
     { node_id: nodeId, run_id: runId, plan_id: planId },
-    { jobId: `node-run:${runId}` },
+    { jobId: `node-run-${runId}` },
   );
 
   return { run_id: runId, node_id: nodeId };

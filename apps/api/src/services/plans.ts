@@ -45,7 +45,7 @@ export async function createPlan(identity: Identity, input: CreatePlanRequest) {
   await getQueue(QUEUES.planBuild).add(
     "plan-build",
     { plan_id: plan.id },
-    { jobId: `plan-build:${plan.id}` },
+    { jobId: `plan-build-${plan.id}` },
   );
 
   return plan;
