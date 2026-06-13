@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn, shortRef } from "@/lib/utils";
-import { ThumbsUp, ThumbsDown, Link2, ShieldCheck, ShieldAlert } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Link2, ShieldCheck, ShieldAlert, Globe } from "lucide-react";
 import { useFeedback } from "@/lib/hooks";
 
 /**
@@ -36,6 +36,44 @@ export function CitationRow({ refs, onJump }: { refs: string[]; onJump?: (ref: s
     <div className="mt-1 flex flex-wrap gap-1">
       {refs.map((r, i) => (
         <Citation key={`${r}-${i}`} refStr={r} onJump={onJump} />
+      ))}
+    </div>
+  );
+}
+
+// ---- WebSourceRow — external web:linkup URLs, visually DISTINCT from repo citations ----
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+export function WebSourceRow({ urls }: { urls: string[] }) {
+  if (!urls.length) return null;
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1">
+      <span
+        className="inline-flex items-center gap-1 rounded px-1 text-[9px] font-semibold uppercase tracking-wide text-[var(--ct-docs)]"
+        style={{ background: "color-mix(in srgb, var(--ct-docs) 14%, transparent)" }}
+        title="External web grounding (Linkup) — not repo-verified"
+      >
+        <Globe size={9} aria-hidden /> web
+      </span>
+      {urls.map((u, i) => (
+        <a
+          key={`${u}-${i}`}
+          href={u}
+          target="_blank"
+          rel="noreferrer"
+          title={u}
+          className="inline-flex max-w-full items-center gap-1 rounded border border-dashed px-1.5 py-0.5 text-[10.5px] text-fg-muted transition-colors hover:text-[var(--ct-docs)]"
+          style={{ borderColor: "color-mix(in srgb, var(--ct-docs) 40%, var(--border))" }}
+        >
+          <span className="truncate">{hostOf(u)}</span>
+        </a>
       ))}
     </div>
   );

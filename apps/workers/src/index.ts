@@ -3,6 +3,7 @@ import { startPlanBuildWorker } from "./workers/plan-build.js";
 import { startAnalysisWorker } from "./workers/analysis.js";
 import { startNodeRunWorker } from "./workers/node-run.js";
 import { startIntegrationWorker } from "./workers/integration.js";
+import { startReplanWorker } from "./workers/replan.js";
 import { closeQueues } from "./queue.js";
 import { env } from "./env.js";
 import { logger } from "./log.js";
@@ -10,8 +11,8 @@ import { logger } from "./log.js";
 const log = logger("workers");
 
 /**
- * Boot all four BullMQ agent workers in one process (the BRAIN of Trellis):
- *   plan-build · analysis · node-run · integration
+ * Boot all BullMQ agent workers in one process (the BRAIN of Trellis):
+ *   plan-build · analysis · node-run · integration · replan
  *
  * Each worker is independently resilient: a bad job is logged and the durable
  * failure is recorded; the process keeps consuming. We never let one job take
@@ -25,6 +26,7 @@ async function main(): Promise<void> {
     startAnalysisWorker(),
     startNodeRunWorker(),
     startIntegrationWorker(),
+    startReplanWorker(),
   ];
 
   const shutdown = async (signal: string) => {
@@ -44,7 +46,7 @@ async function main(): Promise<void> {
     log.error("uncaughtException", err);
   });
 
-  log.info("all four workers running");
+  log.info("all five workers running");
 }
 
 main().catch((err) => {

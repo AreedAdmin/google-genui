@@ -136,21 +136,27 @@ export type Branch = z.infer<typeof Branch>;
 
 // ---- node annotations (P2: the five inspector sections) ----
 
+// `grounded_refs` are REPO symbols/files (P2). `web_sources` are external
+// web:linkup URLs (mandated-integrations.md §3.3) — kept structurally distinct so
+// external claims never masquerade as verified repo facts.
 export const Assumption = z.object({
   text: z.string(),
   grounded_refs: z.array(z.string()).default([]),
+  web_sources: z.array(z.string()).optional(),
   confidence: z.number().min(0).max(1).default(0.5),
 });
 export const AnalysisItem = z.object({
   kind: z.enum(["race_condition", "failure_mode", "edge_case", "perf", "security"]),
   text: z.string(),
   grounded_refs: z.array(z.string()).default([]),
+  web_sources: z.array(z.string()).optional(),
   severity: z.enum(["low", "medium", "high"]).default("medium"),
   confidence: z.number().min(0).max(1).default(0.5),
 });
 export const Benefit = z.object({
   text: z.string(),
   grounded_refs: z.array(z.string()).default([]),
+  web_sources: z.array(z.string()).optional(),
 });
 export const NotableSymbol = z.object({
   symbol: z.string(),

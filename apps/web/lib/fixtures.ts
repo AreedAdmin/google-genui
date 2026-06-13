@@ -232,11 +232,11 @@ const g2: PlanGraph = {
       revision: 1,
       assumptions: [
         { text: "The session shape is unchanged; OAuth just adds a creation path.", grounded_refs: ["src/auth/index.ts#createSession"], confidence: 0.83 },
-        { text: "Providers expose a standard code-for-token exchange.", grounded_refs: [], confidence: 0.45 },
+        { text: "Providers expose a standard OAuth2 code-for-token exchange.", grounded_refs: [], web_sources: ["https://datatracker.ietf.org/doc/html/rfc6749"], confidence: 0.45 },
       ],
       analysis: [
         { kind: "race_condition", text: "Two concurrent first-time logins can both try to insert the same (provider, account_id).", grounded_refs: ["migrations/0007_add_oauth.sql", "src/routes/oauth.ts#oauthHandler"], severity: "high", confidence: 0.8 },
-        { kind: "security", text: "The OAuth `state` parameter must be validated to prevent CSRF on the callback.", grounded_refs: ["src/routes/oauth.ts#oauthHandler"], severity: "high", confidence: 0.78 },
+        { kind: "security", text: "The OAuth `state` parameter must be validated to prevent CSRF on the callback.", grounded_refs: ["src/routes/oauth.ts#oauthHandler"], web_sources: ["https://datatracker.ietf.org/doc/html/rfc6749#section-10.12"], severity: "high", confidence: 0.78 },
         { kind: "failure_mode", text: "A provider 5xx during token exchange should fail closed, not create a half-linked account.", grounded_refs: ["src/routes/oauth.ts#oauthHandler"], severity: "medium", confidence: 0.74 },
       ],
       benefits: [

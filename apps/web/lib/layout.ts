@@ -122,6 +122,7 @@ function layoutChecklist(graph: PlanGraph, spec: LayoutSpec): LayoutResult {
     node.position = { x: 0, y: i * (NODE_H + CHECKLIST_GAP) };
     node.sourcePosition = Position.Bottom;
     node.targetPosition = Position.Top;
+    (node.data as PlanNodeData).dir = "TB";
     return node;
   });
   const bb = boundingBox(nodes);
@@ -133,9 +134,13 @@ function layoutChecklist(graph: PlanGraph, spec: LayoutSpec): LayoutResult {
 function layoutCompactDag(graph: PlanGraph, spec: LayoutSpec, hideSoftEdges: boolean): LayoutResult {
   const rawNodes = graph.nodes.map((n) => buildNode(graph, n.id, spec.emphasis, false));
   const edges = buildEdges(graph, hideSoftEdges);
-  const positioned = layoutWithDagre(rawNodes, edges, { direction: spec.direction });
-  const bb = boundingBox(positioned);
-  return { nodes: positioned as Node<PlanNodeData>[], edges, lanes: [], width: bb.maxX - bb.minX, height: bb.maxY - bb.minY };
+  // Top-down dependency tree: independent nodes spread horizontally across a rank,
+  // dependencies flow downward — a real project-tree shape (not one tall column).
+  const direction = "TB" as const;
+  const positioned = layoutWithDagre(rawNodes, edges, { direction });
+  const nodes = positioned.map((n) => ({ ...n, data: { ...(n.data as PlanNodeData), dir: direction } })) as Node<PlanNodeData>[];
+  const bb = boundingBox(nodes);
+  return { nodes, edges, lanes: [], width: bb.maxX - bb.minX, height: bb.maxY - bb.minY };
 }
 
 // ---- swimlane_dag (G3) ----
@@ -173,6 +178,7 @@ function layoutSwimlane(graph: PlanGraph, spec: LayoutSpec, hideSoftEdges: boole
     // Re-base lane vertically into its band, below the header strip.
     const shifted = positioned.map((node) => ({
       ...node,
+      data: { ...(node.data as PlanNodeData), dir: "LR" as const },
       position: { x: node.position.x, y: node.position.y - bb.minY + cursorY + LANE_HEADER + 8 },
     })) as Node<PlanNodeData>[];
 
@@ -192,13 +198,14 @@ function layoutHierarchical(graph: PlanGraph, spec: LayoutSpec, hideSoftEdges: b
   const rawNodes = graph.nodes.map((n) => buildNode(graph, n.id, spec.emphasis, true));
   // widen super-nodes
   for (const n of rawNodes) {
-    n.width = 220;
+    n.width = 240;
     n.height = 110;
   }
   const edges = buildEdges(graph, hideSoftEdges);
-  const positioned = layoutWithDagre(rawNodes, edges, { direction: spec.direction, nodeWidth: 220, nodeHeight: 110, rankSep: 120, nodeSep: 64 });
-  const bb = boundingBox(positioned);
-  return { nodes: positioned as Node<PlanNodeData>[], edges, lanes: [], width: bb.maxX - bb.minX, height: bb.maxY - bb.minY };
+  const positioned = layoutWithDagre(rawNodes, edges, { direction: spec.direction, nodeWidth: 240, nodeHeight: 110, rankSep: 120, nodeSep: 72 });
+  const nodes = positioned.map((n) => ({ ...n, data: { ...(n.data as PlanNodeData), dir: spec.direction } })) as Node<PlanNodeData>[];
+  const bb = boundingBox(nodes);
+  return { nodes, edges, lanes: [], width: bb.maxX - bb.minX, height: bb.maxY - bb.minY };
 }
 
 export function computeLayout(
