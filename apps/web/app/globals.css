@@ -177,6 +177,10 @@ body {
 .react-flow__edge.selected .react-flow__edge-path {
   stroke: var(--accent);
 }
+/* Edge hover-tooltips (EdgeLabelRenderer) must paint above nodes, not under them. */
+.react-flow__edgelabel-renderer {
+  z-index: 1000;
+}
 
 /* Skeleton shimmer. */
 .skeleton {

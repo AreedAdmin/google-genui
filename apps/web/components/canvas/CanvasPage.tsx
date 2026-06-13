@@ -14,7 +14,6 @@ import { ShareDialog, AddContextDialog } from "@/components/inspector/ActionDial
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Skeleton, EmptyState, Button } from "@/components/ui/primitives";
 import { GitBranch, ArrowLeft, AlertCircle } from "lucide-react";
-import type { Run } from "@trellis/shared";
 
 /**
  * The canvas page (/p/[id]). Fetches the PlanGraph, renders the layout-adaptive
@@ -50,15 +49,15 @@ export function CanvasPage({ planId }: { planId: string }) {
 
   // Subscribe a run's SSE stream → drive the live overlay on its node.
   const attachStream = React.useCallback(
-    (run: Run) => {
+    (run: { run_id: string; node_id: string | null }) => {
       const nodeId = run.node_id;
       if (!nodeId) return;
-      setRunProgress(nodeId, { runId: run.id, status: "running", progress: 0.05 });
+      setRunProgress(nodeId, { runId: run.run_id, status: "running", progress: 0.05 });
       streamCleanups.current.get(nodeId)?.();
-      const cleanup = subscribeRunStream(run.id, {
+      const cleanup = subscribeRunStream(run.run_id, {
         onEvent: (e) => {
           if (e.type === "status" && typeof e.data?.progress === "number") {
-            setRunProgress(nodeId, { runId: run.id, status: "running", progress: e.data.progress as number, tokens: (e.data.tokens as number) ?? 0 });
+            setRunProgress(nodeId, { runId: run.run_id, status: "running", progress: e.data.progress as number, tokens: (e.data.tokens as number) ?? 0 });
           } else if (e.type === "text" && typeof e.data?.text === "string") {
             appendRunLog(nodeId, e.data.text as string);
           } else if (e.type === "tool_call" && typeof e.data?.name === "string") {
@@ -67,8 +66,8 @@ export function CanvasPage({ planId }: { planId: string }) {
             appendRunLog(nodeId, `± ${e.data.path as string}`);
           }
         },
-        onDone: () => setRunProgress(nodeId, { runId: run.id, status: "succeeded", progress: 1 }),
-        onError: () => setRunProgress(nodeId, { runId: run.id, status: "failed", progress: 1 }),
+        onDone: () => setRunProgress(nodeId, { runId: run.run_id, status: "succeeded", progress: 1 }),
+        onError: () => setRunProgress(nodeId, { runId: run.run_id, status: "failed", progress: 1 }),
       });
       streamCleanups.current.set(nodeId, cleanup);
     },

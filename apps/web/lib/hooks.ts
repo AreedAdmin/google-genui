@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import type { PlanGraph } from "@trellis/shared";
-import { api, type PlanListItem, type ProjectListItem, type AccessibleRepo } from "./api";
+import { api, type PlanListItem, type ProjectListItem, type AccessibleRepo, type NodeDiff } from "./api";
 import { getAccessToken, subscribePlanRealtime } from "./supabase";
 import { getFixturePlan, FIXTURE_PLAN_LIST } from "./fixtures";
 import { useCanvasStore } from "./store";
@@ -71,6 +71,20 @@ export function useGithubRepos() {
       }
     },
     staleTime: 60_000,
+  });
+}
+
+/** Latest captured build diff for a node (polls while the node is running). */
+export function useNodeDiff(nodeId: string | null, status?: string) {
+  return useQuery<NodeDiff | null>({
+    queryKey: ["node-diff", nodeId],
+    enabled: !!nodeId,
+    queryFn: async () => {
+      const token = await getAccessToken();
+      return api.getNodeDiff(nodeId as string, token);
+    },
+    staleTime: 2_000,
+    refetchInterval: status === "running" ? 4000 : false,
   });
 }
 
